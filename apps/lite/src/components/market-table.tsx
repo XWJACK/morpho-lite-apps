@@ -266,12 +266,12 @@ function IdTableCell({ marketId }: { marketId: MarketId }) {
 // Filter Popover Component
 function FilterPopover({
   label,
-  options,
+  tokens,
   selectedValues,
   onSelectionChange,
 }: {
   label: string;
-  options: { value: Address; label: string }[];
+  tokens: Token[];
   selectedValues: Set<Address>;
   onSelectionChange: (values: Set<Address>) => void;
 }) {
@@ -279,16 +279,16 @@ function FilterPopover({
   const [isOpen, setIsOpen] = useState(false);
 
   const filteredOptions = useMemo(
-    () => options.filter((opt) => opt.label.toLowerCase().includes(searchTerm.toLowerCase())),
-    [options, searchTerm],
+    () => tokens.filter((opt) => opt.symbol?.toLowerCase().includes(searchTerm.toLowerCase())),
+    [tokens, searchTerm],
   );
 
-  const toggleSelection = (value: Address) => {
+  const toggleSelection = (address: Address) => {
     const newSelection = new Set(selectedValues);
-    if (newSelection.has(value)) {
-      newSelection.delete(value);
+    if (newSelection.has(address)) {
+      newSelection.delete(address);
     } else {
-      newSelection.add(value);
+      newSelection.add(address);
     }
     onSelectionChange(newSelection);
   };
@@ -344,18 +344,24 @@ function FilterPopover({
             ) : (
               filteredOptions.map((option) => (
                 <button
-                  key={option.value}
-                  onClick={() => toggleSelection(option.value)}
+                  key={option.address}
+                  onClick={() => toggleSelection(option.address)}
                   className="hover:bg-secondary flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs"
                 >
                   <div
                     className={`flex h-4 w-4 items-center justify-center rounded border ${
-                      selectedValues.has(option.value) ? "border-blue-500 bg-blue-500" : "border-gray-400"
+                      selectedValues.has(option.address) ? "border-blue-500 bg-blue-500" : "border-gray-400"
                     }`}
                   >
-                    {selectedValues.has(option.value) && <CheckCheck className="size-3 text-white" />}
+                    {selectedValues.has(option.address) && <CheckCheck className="size-3 text-white" />}
                   </div>
-                  <span>{option.label}</span>
+                  <Avatar className="size-4 rounded-full">
+                    <AvatarImage src={option.imageSrc} alt={option.symbol} />
+                    <AvatarFallback delayMs={1000}>
+                      <img src={blo(option.address)} />
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>{option.symbol}</span>
                 </button>
               ))
             )}
@@ -414,30 +420,26 @@ export function MarketTable({
   };
 
   // Get unique tokens for filters
-  const collateralOptions = useMemo(() => {
-    const uniqueTokens = new Map<Address, string>();
+  const collateralTokens = useMemo(() => {
+    const uniqueTokens = new Map<Address, Token>();
     markets.forEach((market) => {
       const token = tokens.get(market.params.collateralToken);
       if (token?.symbol) {
-        uniqueTokens.set(market.params.collateralToken, token.symbol);
+        uniqueTokens.set(market.params.collateralToken, token);
       }
     });
-    return Array.from(uniqueTokens.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+    return Array.from(uniqueTokens.values()).sort((a, b) => (a.symbol ?? "").localeCompare(b.symbol ?? ""));
   }, [markets, tokens]);
 
-  const loanOptions = useMemo(() => {
-    const uniqueTokens = new Map<Address, string>();
+  const loanTokens = useMemo(() => {
+    const uniqueTokens = new Map<Address, Token>();
     markets.forEach((market) => {
       const token = tokens.get(market.params.loanToken);
       if (token?.symbol) {
-        uniqueTokens.set(market.params.loanToken, token.symbol);
+        uniqueTokens.set(market.params.loanToken, token);
       }
     });
-    return Array.from(uniqueTokens.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+    return Array.from(uniqueTokens.values()).sort((a, b) => (a.symbol ?? "").localeCompare(b.symbol ?? ""));
   }, [markets, tokens]);
 
   // Apply filters and sorting
@@ -498,7 +500,7 @@ export function MarketTable({
           <TableHead className="text-secondary-foreground rounded-l-lg pl-4 text-xs font-light">
             <FilterPopover
               label="Collateral"
-              options={collateralOptions}
+              tokens={collateralTokens}
               selectedValues={selectedCollaterals}
               onSelectionChange={setSelectedCollaterals}
             />
@@ -506,7 +508,7 @@ export function MarketTable({
           <TableHead className="text-secondary-foreground text-xs font-light">
             <FilterPopover
               label="Loan"
-              options={loanOptions}
+              tokens={loanTokens}
               selectedValues={selectedLoans}
               onSelectionChange={setSelectedLoans}
             />
