@@ -382,6 +382,7 @@ export function MarketTable({
   const [selectedCollaterals, setSelectedCollaterals] = useState<Set<Address>>(new Set());
   const [selectedLoans, setSelectedLoans] = useState<Set<Address>>(new Set());
   const [rateSortOrder, setRateSortOrder] = useState<"asc" | "desc" | null>(null);
+  const [liquiditySortOrder, setLiquiditySortOrder] = useState<"asc" | "desc" | null>(null);
 
   // Get unique tokens for filters
   const collateralOptions = useMemo(() => {
@@ -433,8 +434,17 @@ export function MarketTable({
       });
     }
 
+    // Apply liquidity sorting
+    if (liquiditySortOrder) {
+      filtered.sort((a, b) => {
+        const liquidityA = a.liquidity;
+        const liquidityB = b.liquidity;
+        return liquiditySortOrder === "asc" ? (liquidityA > liquidityB ? 1 : -1) : liquidityA < liquidityB ? 1 : -1;
+      });
+    }
+
     return filtered;
-  }, [markets, selectedCollaterals, selectedLoans, rateSortOrder]);
+  }, [markets, selectedCollaterals, selectedLoans, rateSortOrder, liquiditySortOrder]);
 
   return (
     <Table className="border-separate border-spacing-y-3">
@@ -459,7 +469,19 @@ export function MarketTable({
           <TableHead className="text-secondary-foreground text-xs font-light">LLTV</TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">
             <div className="flex items-center gap-1">
-              Liquidity
+              <button
+                onClick={() => {
+                  if (liquiditySortOrder === null) setLiquiditySortOrder("desc");
+                  else if (liquiditySortOrder === "desc") setLiquiditySortOrder("asc");
+                  else setLiquiditySortOrder(null);
+                }}
+                className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
+              >
+                <span>Liquidity</span>
+                {liquiditySortOrder === null && <ArrowUpDown className="size-3 opacity-50" />}
+                {liquiditySortOrder === "asc" && <ArrowUp className="size-3" />}
+                {liquiditySortOrder === "desc" && <ArrowDown className="size-3" />}
+              </button>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
