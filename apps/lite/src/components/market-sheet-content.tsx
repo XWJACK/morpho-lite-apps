@@ -1,4 +1,11 @@
-import { AccrualPosition, IMarket, Market, MarketId, MarketParams, Position } from "@morpho-org/blue-sdk";
+import {
+  // AccrualPosition,
+  IMarket,
+  Market,
+  MarketId,
+  MarketParams,
+  Position,
+} from "@morpho-org/blue-sdk";
 import { morphoAbi } from "@morpho-org/uikit/assets/abis/morpho";
 import { oracleAbi } from "@morpho-org/uikit/assets/abis/oracle";
 // import { AnimateIn } from "@morpho-org/uikit/components/animate-in";
@@ -157,13 +164,13 @@ export function MarketSheetContent({
     [userAddress, marketId, positionRaw],
   );
 
-  const accrualPosition = useMemo(
-    () =>
-      market && position
-        ? new AccrualPosition(position, market).accrueInterest(BigInt((Date.now() / 1000).toFixed(0)))
-        : undefined,
-    [position, market],
-  );
+  // const accrualPosition = useMemo(
+  //   () =>
+  //     market && position
+  //       ? new AccrualPosition(position, market).accrueInterest(BigInt((Date.now() / 1000).toFixed(0)))
+  //       : undefined,
+  //   [position, market],
+  // );
 
   const { token, inputValue } = useMemo(() => {
     const token = tokens.get(marketParams.loanToken);
@@ -173,11 +180,11 @@ export function MarketSheetContent({
     };
   }, [textInputValue, tokens, marketParams]);
 
-  let withdrawCollateralMax = accrualPosition?.withdrawableCollateral;
-  if (withdrawCollateralMax !== undefined && accrualPosition!.borrowAssets > 0n) {
-    withdrawCollateralMax = (withdrawCollateralMax * 999n) / 1000n; // safety since interest is accruing
+  let withdrawCollateralMax = 0n;
+  if (position !== undefined && market !== undefined && market.totalSupplyShares > 0n) {
+    withdrawCollateralMax =
+      (position.supplyShares * (market.totalSupplyAssets + 1n)) / (market.totalSupplyShares + 1000000n);
   }
-  // Removed: borrowMax and repayMax logic
 
   // Approval is only needed for SupplyCollateral now
   const approvalTxnConfig =
