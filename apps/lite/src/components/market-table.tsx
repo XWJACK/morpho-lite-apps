@@ -2,6 +2,9 @@ import { AccrualPosition, Market, type MarketId } from "@morpho-org/blue-sdk";
 import { AvatarStack } from "@morpho-org/uikit/components/avatar-stack";
 import { SafeLink } from "@morpho-org/uikit/components/safe-link";
 import { Avatar, AvatarFallback, AvatarImage } from "@morpho-org/uikit/components/shadcn/avatar";
+import { Button } from "@morpho-org/uikit/components/shadcn/button";
+import { Input } from "@morpho-org/uikit/components/shadcn/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@morpho-org/uikit/components/shadcn/popover";
 import { Sheet, SheetTrigger } from "@morpho-org/uikit/components/shadcn/sheet";
 import {
   Table,
@@ -14,8 +17,8 @@ import {
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@morpho-org/uikit/components/shadcn/tooltip";
 import { formatLtv, formatBalanceWithSymbol, Token, abbreviateAddress } from "@morpho-org/uikit/lib/utils";
 import { blo } from "blo";
-import { CheckCheck, Copy, ExternalLink, Info } from "lucide-react";
-import { useState } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCheck, ChevronDown, Copy, ExternalLink, Info, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { type Chain, type Hex, type Address } from "viem";
 
 import { MarketSheetContent } from "@/components/market-sheet-content";
@@ -250,6 +253,116 @@ function IdTableCell({ marketId }: { marketId: MarketId }) {
   );
 }
 
+// Filter Popover Component
+function FilterPopover({
+  label,
+  options,
+  selectedValues,
+  onSelectionChange,
+}: {
+  label: string;
+  options: { value: Address; label: string }[];
+  selectedValues: Set<Address>;
+  onSelectionChange: (values: Set<Address>) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const filteredOptions = useMemo(
+    () => options.filter((opt) => opt.label.toLowerCase().includes(searchTerm.toLowerCase())),
+    [options, searchTerm],
+  );
+
+  const toggleSelection = (value: Address) => {
+    const newSelection = new Set(selectedValues);
+    if (newSelection.has(value)) {
+      newSelection.delete(value);
+    } else {
+      newSelection.add(value);
+    }
+    onSelectionChange(newSelection);
+  };
+
+  const clearAll = () => {
+    onSelectionChange(new Set());
+    setIsOpen(false);
+  };
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="secondaryTab"
+          size="sm"
+          className="hover:bg-secondary flex h-8 items-center gap-1 rounded-full px-3 text-xs font-light"
+        >
+          {label}
+          {selectedValues.size > 0 && (
+            <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] text-white">
+              {selectedValues.size}
+            </span>
+          )}
+          <ChevronDown className="size-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-0" align="start">
+        <div className="flex flex-col">
+          {/* Header */}
+          <div className="border-b p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Filter by {label}</span>
+              <button onClick={() => setIsOpen(false)} className="hover:bg-secondary rounded p-1">
+                <X className="size-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Search Input */}
+          <div className="p-3">
+            <Input
+              placeholder={`Search ${label.toLowerCase()}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-64 overflow-y-auto p-2">
+            {filteredOptions.length === 0 ? (
+              <div className="text-secondary-foreground py-4 text-center text-xs">No results found</div>
+            ) : (
+              filteredOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => toggleSelection(option.value)}
+                  className="hover:bg-secondary flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs"
+                >
+                  <div
+                    className={`flex h-4 w-4 items-center justify-center rounded border ${
+                      selectedValues.has(option.value) ? "border-blue-500 bg-blue-500" : "border-gray-400"
+                    }`}
+                  >
+                    {selectedValues.has(option.value) && <CheckCheck className="size-3 text-white" />}
+                  </div>
+                  <span>{option.label}</span>
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t p-2">
+            <Button variant="ghost" size="sm" onClick={clearAll} className="w-full text-xs">
+              Clear All
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function MarketTable({
   chain,
   markets,
@@ -265,12 +378,84 @@ export function MarketTable({
   borrowingRewards: ReturnType<typeof useMerklOpportunities>;
   refetchPositions: () => void;
 }) {
+  // Filter states
+  const [selectedCollaterals, setSelectedCollaterals] = useState<Set<Address>>(new Set());
+  const [selectedLoans, setSelectedLoans] = useState<Set<Address>>(new Set());
+  const [rateSortOrder, setRateSortOrder] = useState<"asc" | "desc" | null>(null);
+
+  // Get unique tokens for filters
+  const collateralOptions = useMemo(() => {
+    const uniqueTokens = new Map<Address, string>();
+    markets.forEach((market) => {
+      const token = tokens.get(market.params.collateralToken);
+      if (token?.symbol) {
+        uniqueTokens.set(market.params.collateralToken, token.symbol);
+      }
+    });
+    return Array.from(uniqueTokens.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [markets, tokens]);
+
+  const loanOptions = useMemo(() => {
+    const uniqueTokens = new Map<Address, string>();
+    markets.forEach((market) => {
+      const token = tokens.get(market.params.loanToken);
+      if (token?.symbol) {
+        uniqueTokens.set(market.params.loanToken, token.symbol);
+      }
+    });
+    return Array.from(uniqueTokens.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [markets, tokens]);
+
+  // Apply filters and sorting
+  const filteredAndSortedMarkets = useMemo(() => {
+    let filtered = [...markets];
+
+    // Apply collateral filter
+    if (selectedCollaterals.size > 0) {
+      filtered = filtered.filter((market) => selectedCollaterals.has(market.params.collateralToken));
+    }
+
+    // Apply loan filter
+    if (selectedLoans.size > 0) {
+      filtered = filtered.filter((market) => selectedLoans.has(market.params.loanToken));
+    }
+
+    // Apply sorting
+    if (rateSortOrder) {
+      filtered.sort((a, b) => {
+        const rateA = a.borrowApy;
+        const rateB = b.borrowApy;
+        return rateSortOrder === "asc" ? (rateA > rateB ? 1 : -1) : rateA < rateB ? 1 : -1;
+      });
+    }
+
+    return filtered;
+  }, [markets, selectedCollaterals, selectedLoans, rateSortOrder]);
+
   return (
     <Table className="border-separate border-spacing-y-3">
       <TableHeader className="bg-primary">
         <TableRow>
-          <TableHead className="text-secondary-foreground rounded-l-lg pl-4 text-xs font-light">Collateral</TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">Loan</TableHead>
+          <TableHead className="text-secondary-foreground rounded-l-lg pl-4 text-xs font-light">
+            <FilterPopover
+              label="Collateral"
+              options={collateralOptions}
+              selectedValues={selectedCollaterals}
+              onSelectionChange={setSelectedCollaterals}
+            />
+          </TableHead>
+          <TableHead className="text-secondary-foreground text-xs font-light">
+            <FilterPopover
+              label="Loan"
+              options={loanOptions}
+              selectedValues={selectedLoans}
+              onSelectionChange={setSelectedLoans}
+            />
+          </TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">LLTV</TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">
             <div className="flex items-center gap-1">
@@ -296,13 +481,27 @@ export function MarketTable({
               </TooltipProvider>
             </div>
           </TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">Rate</TableHead>
+          <TableHead className="text-secondary-foreground text-xs font-light">
+            <button
+              onClick={() => {
+                if (rateSortOrder === null) setRateSortOrder("desc");
+                else if (rateSortOrder === "desc") setRateSortOrder("asc");
+                else setRateSortOrder(null);
+              }}
+              className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
+            >
+              <span>Rate</span>
+              {rateSortOrder === null && <ArrowUpDown className="size-3 opacity-50" />}
+              {rateSortOrder === "asc" && <ArrowUp className="size-3" />}
+              {rateSortOrder === "desc" && <ArrowDown className="size-3" />}
+            </button>
+          </TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">Vault Listing</TableHead>
           <TableHead className="text-secondary-foreground rounded-r-lg text-xs font-light">ID</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {markets.map((market) => (
+        {filteredAndSortedMarkets.map((market) => (
           <Sheet
             key={market.id}
             onOpenChange={(isOpen) => {
