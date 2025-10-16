@@ -17,7 +17,17 @@ import {
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@morpho-org/uikit/components/shadcn/tooltip";
 import { formatLtv, formatBalanceWithSymbol, Token, abbreviateAddress } from "@morpho-org/uikit/lib/utils";
 import { blo } from "blo";
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCheck, ChevronDown, Copy, ExternalLink, Info, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  CheckCheck,
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  Info,
+  // X
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { type Chain, type Hex, type Address } from "viem";
 
@@ -308,14 +318,14 @@ function FilterPopover({
       <PopoverContent className="w-64 p-0" align="start">
         <div className="flex flex-col">
           {/* Header */}
-          <div className="border-b p-3">
+          {/* <div className="border-b p-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Filter by {label}</span>
               <button onClick={() => setIsOpen(false)} className="hover:bg-secondary rounded p-1">
                 <X className="size-4" />
               </button>
             </div>
-          </div>
+          </div> */}
 
           {/* Search Input */}
           <div className="p-3">
@@ -381,10 +391,27 @@ export function MarketTable({
   // Filter states
   const [selectedCollaterals, setSelectedCollaterals] = useState<Set<Address>>(new Set());
   const [selectedLoans, setSelectedLoans] = useState<Set<Address>>(new Set());
-  const [rateSortOrder, setRateSortOrder] = useState<"asc" | "desc" | null>(null);
-  const [liquiditySortOrder, setLiquiditySortOrder] = useState<"asc" | "desc" | null>(null);
-  const [utilizationSortOrder, setUtilizationSortOrder] = useState<"asc" | "desc" | null>(null);
-  const [totalSupplySortOrder, setTotalSupplySortOrder] = useState<"asc" | "desc" | null>(null);
+
+  // Sort state - use single state object for all sortable columns
+  type SortColumn = "liquidity" | "rate" | "utilization" | "totalSupply";
+  type SortState = {
+    column: SortColumn | null;
+    order: "asc" | "desc";
+  };
+  const [sortState, setSortState] = useState<SortState | null>(null);
+
+  // Helper function to handle sort toggle
+  const handleSort = (column: SortColumn) => {
+    setSortState((prev) => {
+      // If clicking the same column, cycle through: desc -> asc -> null
+      if (prev?.column === column) {
+        if (prev.order === "desc") return { column, order: "asc" };
+        return null; // Clear sort
+      }
+      // If clicking a different column, start with desc
+      return { column, order: "desc" };
+    });
+  };
 
   // Get unique tokens for filters
   const collateralOptions = useMemo(() => {
@@ -427,64 +454,42 @@ export function MarketTable({
       filtered = filtered.filter((market) => selectedLoans.has(market.params.loanToken));
     }
 
-    // Apply sorting
-    if (rateSortOrder) {
+    // Apply sorting based on current sort state
+    if (sortState) {
       filtered.sort((a, b) => {
-        const rateA = a.borrowApy;
-        const rateB = b.borrowApy;
-        return rateSortOrder === "asc" ? (rateA > rateB ? 1 : -1) : rateA < rateB ? 1 : -1;
-      });
-    }
+        let valueA: bigint;
+        let valueB: bigint;
 
-    // Apply liquidity sorting
-    if (liquiditySortOrder) {
-      filtered.sort((a, b) => {
-        const liquidityA = a.liquidity;
-        const liquidityB = b.liquidity;
-        return liquiditySortOrder === "asc" ? (liquidityA > liquidityB ? 1 : -1) : liquidityA < liquidityB ? 1 : -1;
-      });
-    }
+        // Get values based on sort column
+        switch (sortState.column) {
+          case "liquidity":
+            valueA = a.liquidity;
+            valueB = b.liquidity;
+            break;
+          case "rate":
+            valueA = a.borrowApy;
+            valueB = b.borrowApy;
+            break;
+          case "utilization":
+            valueA = a.utilization;
+            valueB = b.utilization;
+            break;
+          case "totalSupply":
+            valueA = a.totalSupplyAssets;
+            valueB = b.totalSupplyAssets;
+            break;
+          default:
+            return 0;
+        }
 
-    // Apply utilization sorting
-    if (utilizationSortOrder) {
-      filtered.sort((a, b) => {
-        const utilizationA = a.utilization;
-        const utilizationB = b.utilization;
-        return utilizationSortOrder === "asc"
-          ? utilizationA > utilizationB
-            ? 1
-            : -1
-          : utilizationA < utilizationB
-            ? 1
-            : -1;
-      });
-    }
-
-    // Apply total supply sorting
-    if (totalSupplySortOrder) {
-      filtered.sort((a, b) => {
-        const totalSupplyA = a.totalSupplyAssets;
-        const totalSupplyB = b.totalSupplyAssets;
-        return totalSupplySortOrder === "asc"
-          ? totalSupplyA > totalSupplyB
-            ? 1
-            : -1
-          : totalSupplyA < totalSupplyB
-            ? 1
-            : -1;
+        // Compare and return based on sort order
+        const comparison = valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+        return sortState.order === "asc" ? comparison : -comparison;
       });
     }
 
     return filtered;
-  }, [
-    markets,
-    selectedCollaterals,
-    selectedLoans,
-    rateSortOrder,
-    liquiditySortOrder,
-    utilizationSortOrder,
-    totalSupplySortOrder,
-  ]);
+  }, [markets, selectedCollaterals, selectedLoans, sortState]);
 
   return (
     <Table className="border-separate border-spacing-y-3">
@@ -510,22 +515,13 @@ export function MarketTable({
           <TableHead className="text-secondary-foreground text-xs font-light">
             <div className="flex items-center gap-1">
               <button
-                onClick={() => {
-                  // Clear other sort states
-                  setRateSortOrder(null);
-                  setUtilizationSortOrder(null);
-                  setTotalSupplySortOrder(null);
-
-                  if (liquiditySortOrder === null) setLiquiditySortOrder("desc");
-                  else if (liquiditySortOrder === "desc") setLiquiditySortOrder("asc");
-                  else setLiquiditySortOrder(null);
-                }}
+                onClick={() => handleSort("liquidity")}
                 className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
               >
                 <span>Liquidity</span>
-                {liquiditySortOrder === null && <ArrowUpDown className="size-3 opacity-50" />}
-                {liquiditySortOrder === "asc" && <ArrowUp className="size-3" />}
-                {liquiditySortOrder === "desc" && <ArrowDown className="size-3" />}
+                {sortState?.column !== "liquidity" && <ArrowUpDown className="size-3 opacity-50" />}
+                {sortState?.column === "liquidity" && sortState.order === "asc" && <ArrowUp className="size-3" />}
+                {sortState?.column === "liquidity" && sortState.order === "desc" && <ArrowDown className="size-3" />}
               </button>
               <TooltipProvider>
                 <Tooltip>
@@ -550,62 +546,35 @@ export function MarketTable({
           </TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">
             <button
-              onClick={() => {
-                // Clear other sort states
-                setLiquiditySortOrder(null);
-                setUtilizationSortOrder(null);
-                setTotalSupplySortOrder(null);
-
-                if (rateSortOrder === null) setRateSortOrder("desc");
-                else if (rateSortOrder === "desc") setRateSortOrder("asc");
-                else setRateSortOrder(null);
-              }}
+              onClick={() => handleSort("rate")}
               className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
             >
               <span>Rate</span>
-              {rateSortOrder === null && <ArrowUpDown className="size-3 opacity-50" />}
-              {rateSortOrder === "asc" && <ArrowUp className="size-3" />}
-              {rateSortOrder === "desc" && <ArrowDown className="size-3" />}
+              {sortState?.column !== "rate" && <ArrowUpDown className="size-3 opacity-50" />}
+              {sortState?.column === "rate" && sortState.order === "asc" && <ArrowUp className="size-3" />}
+              {sortState?.column === "rate" && sortState.order === "desc" && <ArrowDown className="size-3" />}
             </button>
           </TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">
             <button
-              onClick={() => {
-                // Clear other sort states
-                setRateSortOrder(null);
-                setLiquiditySortOrder(null);
-                setTotalSupplySortOrder(null);
-
-                if (utilizationSortOrder === null) setUtilizationSortOrder("desc");
-                else if (utilizationSortOrder === "desc") setUtilizationSortOrder("asc");
-                else setUtilizationSortOrder(null);
-              }}
+              onClick={() => handleSort("utilization")}
               className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
             >
               <span>Utilization</span>
-              {utilizationSortOrder === null && <ArrowUpDown className="size-3 opacity-50" />}
-              {utilizationSortOrder === "asc" && <ArrowUp className="size-3" />}
-              {utilizationSortOrder === "desc" && <ArrowDown className="size-3" />}
+              {sortState?.column !== "utilization" && <ArrowUpDown className="size-3 opacity-50" />}
+              {sortState?.column === "utilization" && sortState.order === "asc" && <ArrowUp className="size-3" />}
+              {sortState?.column === "utilization" && sortState.order === "desc" && <ArrowDown className="size-3" />}
             </button>
           </TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">
             <button
-              onClick={() => {
-                // Clear other sort states
-                setRateSortOrder(null);
-                setLiquiditySortOrder(null);
-                setUtilizationSortOrder(null);
-
-                if (totalSupplySortOrder === null) setTotalSupplySortOrder("desc");
-                else if (totalSupplySortOrder === "desc") setTotalSupplySortOrder("asc");
-                else setTotalSupplySortOrder(null);
-              }}
+              onClick={() => handleSort("totalSupply")}
               className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
             >
               <span>Total Market Size</span>
-              {totalSupplySortOrder === null && <ArrowUpDown className="size-3 opacity-50" />}
-              {totalSupplySortOrder === "asc" && <ArrowUp className="size-3" />}
-              {totalSupplySortOrder === "desc" && <ArrowDown className="size-3" />}
+              {sortState?.column !== "totalSupply" && <ArrowUpDown className="size-3 opacity-50" />}
+              {sortState?.column === "totalSupply" && sortState.order === "asc" && <ArrowUp className="size-3" />}
+              {sortState?.column === "totalSupply" && sortState.order === "desc" && <ArrowDown className="size-3" />}
             </button>
           </TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">Vault Listing</TableHead>
