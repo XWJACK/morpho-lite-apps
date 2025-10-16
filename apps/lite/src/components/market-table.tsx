@@ -25,7 +25,11 @@ import {
   ChevronDown,
   Copy,
   ExternalLink,
+  Eye,
+  EyeOff,
+  GripVertical,
   Info,
+  Settings2,
   // X
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -379,6 +383,134 @@ function FilterPopover({
   );
 }
 
+// Column Configuration Types
+type ColumnId =
+  | "collateral"
+  | "loan"
+  | "totalSupply"
+  | "liquidity"
+  | "rate"
+  | "utilization"
+  | "lltv"
+  | "vaultListing"
+  | "id";
+
+type ColumnConfig = {
+  id: ColumnId;
+  label: string;
+  visible: boolean;
+  sortable: boolean;
+};
+
+// Column Configuration Manager Component
+function ColumnConfigManager({
+  columns,
+  onColumnsChange,
+}: {
+  columns: ColumnConfig[];
+  onColumnsChange: (columns: ColumnConfig[]) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const toggleColumnVisibility = (columnId: ColumnId) => {
+    onColumnsChange(columns.map((col) => (col.id === columnId ? { ...col, visible: !col.visible } : col)));
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newColumns = [...columns];
+    const draggedColumn = newColumns[draggedIndex];
+    newColumns.splice(draggedIndex, 1);
+    newColumns.splice(index, 0, draggedColumn);
+    setDraggedIndex(index);
+    onColumnsChange(newColumns);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const visibleCount = columns.filter((col) => col.visible).length;
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="secondaryTab"
+          size="sm"
+          className="hover:bg-secondary flex h-8 items-center gap-1 rounded-full px-3 text-xs font-light"
+        >
+          <Settings2 className="size-3" />
+          <span>Customize</span>
+          <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] text-white">
+            {visibleCount}
+          </span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="start">
+        <div className="flex flex-col">
+          {/* Header */}
+          <div className="border-b p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Customize Columns</span>
+              <span className="text-secondary-foreground text-xs">
+                {visibleCount} of {columns.length} visible
+              </span>
+            </div>
+          </div>
+
+          {/* Columns List */}
+          <div className="max-h-96 overflow-y-auto p-2">
+            {columns.map((column, index) => (
+              <div
+                key={column.id}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`hover:bg-secondary flex items-center gap-2 rounded px-2 py-2 transition-colors ${
+                  draggedIndex === index ? "opacity-50" : ""
+                }`}
+              >
+                <GripVertical className="text-secondary-foreground size-4 cursor-grab active:cursor-grabbing" />
+                <button onClick={() => toggleColumnVisibility(column.id)} className="flex flex-1 items-center gap-2">
+                  {column.visible ? (
+                    <Eye className="size-4 text-blue-500" />
+                  ) : (
+                    <EyeOff className="text-secondary-foreground size-4" />
+                  )}
+                  <span className={`text-sm ${column.visible ? "" : "text-secondary-foreground"}`}>{column.label}</span>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t p-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                onColumnsChange(columns.map((col) => ({ ...col, visible: true })));
+              }}
+              className="w-full text-xs"
+            >
+              Show All Columns
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function MarketTable({
   chain,
   markets,
@@ -394,6 +526,19 @@ export function MarketTable({
   borrowingRewards: ReturnType<typeof useMerklOpportunities>;
   refetchPositions: () => void;
 }) {
+  // Column configuration state
+  const [columnConfigs, setColumnConfigs] = useState<ColumnConfig[]>([
+    { id: "collateral", label: "Collateral", visible: true, sortable: false },
+    { id: "loan", label: "Loan", visible: true, sortable: false },
+    { id: "totalSupply", label: "Total Market Size", visible: true, sortable: true },
+    { id: "liquidity", label: "Liquidity", visible: true, sortable: true },
+    { id: "rate", label: "Supply APY", visible: true, sortable: true },
+    { id: "utilization", label: "Utilization", visible: true, sortable: true },
+    { id: "lltv", label: "LLTV", visible: true, sortable: false },
+    { id: "vaultListing", label: "Trusted By", visible: true, sortable: false },
+    { id: "id", label: "ID", visible: true, sortable: false },
+  ]);
+
   // Filter states
   const [selectedCollaterals, setSelectedCollaterals] = useState<Set<Address>>(new Set());
   const [selectedLoans, setSelectedLoans] = useState<Set<Address>>(new Set());
@@ -493,11 +638,16 @@ export function MarketTable({
     return filtered;
   }, [markets, selectedCollaterals, selectedLoans, sortState]);
 
-  return (
-    <Table className="border-separate border-spacing-y-3">
-      <TableHeader className="bg-primary">
-        <TableRow>
-          <TableHead className="text-secondary-foreground rounded-l-lg pl-4 text-xs font-light">
+  // Render table header for a column
+  const renderColumnHeader = (columnId: ColumnId, index: number, visibleColumns: ColumnConfig[]) => {
+    const isFirst = index === 0;
+    const isLast = index === visibleColumns.length - 1;
+    const baseClass = `text-secondary-foreground text-xs font-light ${isFirst ? "rounded-l-lg pl-4" : ""} ${isLast ? "rounded-r-lg" : ""}`;
+
+    switch (columnId) {
+      case "collateral":
+        return (
+          <TableHead key={columnId} className={baseClass}>
             <FilterPopover
               label="Collateral"
               tokens={collateralTokens}
@@ -505,7 +655,10 @@ export function MarketTable({
               onSelectionChange={setSelectedCollaterals}
             />
           </TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">
+        );
+      case "loan":
+        return (
+          <TableHead key={columnId} className={baseClass}>
             <FilterPopover
               label="Loan"
               tokens={loanTokens}
@@ -513,7 +666,10 @@ export function MarketTable({
               onSelectionChange={setSelectedLoans}
             />
           </TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">
+        );
+      case "totalSupply":
+        return (
+          <TableHead key={columnId} className={baseClass}>
             <button
               onClick={() => handleSort("totalSupply")}
               className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
@@ -524,7 +680,10 @@ export function MarketTable({
               {sortState?.column === "totalSupply" && sortState.order === "desc" && <ArrowDown className="size-3" />}
             </button>
           </TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">
+        );
+      case "liquidity":
+        return (
+          <TableHead key={columnId} className={baseClass}>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => handleSort("liquidity")}
@@ -556,7 +715,10 @@ export function MarketTable({
               </TooltipProvider>
             </div>
           </TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">
+        );
+      case "rate":
+        return (
+          <TableHead key={columnId} className={baseClass}>
             <button
               onClick={() => handleSort("rate")}
               className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
@@ -567,7 +729,10 @@ export function MarketTable({
               {sortState?.column === "rate" && sortState.order === "desc" && <ArrowDown className="size-3" />}
             </button>
           </TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">
+        );
+      case "utilization":
+        return (
+          <TableHead key={columnId} className={baseClass}>
             <button
               onClick={() => handleSort("utilization")}
               className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
@@ -578,77 +743,149 @@ export function MarketTable({
               {sortState?.column === "utilization" && sortState.order === "desc" && <ArrowDown className="size-3" />}
             </button>
           </TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">LLTV</TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">Vault Listing</TableHead>
-          <TableHead className="text-secondary-foreground rounded-r-lg text-xs font-light">ID</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {filteredAndSortedMarkets.map((market) => (
-          <Sheet
-            key={market.id}
-            onOpenChange={(isOpen) => {
-              // Refetch positions on sidesheet close, since user may have sent txns to modify one
-              if (!isOpen) void refetchPositions();
-            }}
-          >
-            <SheetTrigger asChild>
-              <TableRow className="bg-primary hover:bg-secondary">
-                <TableCell className="rounded-l-lg py-3">
-                  <TokenTableCell {...tokens.get(market.params.collateralToken)!} chain={chain} />
-                </TableCell>
-                <TableCell>
-                  <TokenTableCell {...tokens.get(market.params.loanToken)!} chain={chain} />
-                </TableCell>
+        );
+      case "lltv":
+        return (
+          <TableHead key={columnId} className={baseClass}>
+            LLTV
+          </TableHead>
+        );
+      case "vaultListing":
+        return (
+          <TableHead key={columnId} className={baseClass}>
+            Vault Listing
+          </TableHead>
+        );
+      case "id":
+        return (
+          <TableHead key={columnId} className={baseClass}>
+            ID
+          </TableHead>
+        );
+      default:
+        return null;
+    }
+  };
 
-                <TableCell>
-                  {tokens.get(market.params.loanToken)?.decimals !== undefined
-                    ? formatBalanceWithSymbol(
-                        market.totalSupplyAssets,
-                        tokens.get(market.params.loanToken)!.decimals!,
-                        tokens.get(market.params.loanToken)!.symbol,
-                        5,
-                        true,
-                      )
-                    : "－"}
-                </TableCell>
-                <TableCell>
-                  {tokens.get(market.params.loanToken)?.decimals !== undefined
-                    ? formatBalanceWithSymbol(
-                        market.liquidity,
-                        tokens.get(market.params.loanToken)!.decimals!,
-                        tokens.get(market.params.loanToken)!.symbol,
-                        5,
-                        true,
-                      )
-                    : "－"}
-                </TableCell>
-                <TableCell>
-                  <ApyTableCell
-                    nativeApy={market.borrowApy}
-                    rewards={borrowingRewards.get(market.id) ?? []}
-                    mode="owe"
-                  />
-                </TableCell>
-                <TableCell>{formatLtv(market.utilization)}</TableCell>
-                <TableCell>{formatLtv(market.params.lltv)}</TableCell>
-                <TableCell>
-                  <VaultsTableCell
-                    token={tokens.get(market.params.loanToken)!}
-                    vaults={marketVaults.get(market.params.id) ?? []}
-                    chain={chain}
-                  />
-                </TableCell>
-                <TableCell className="rounded-r-lg">
-                  <IdTableCell marketId={market.id} />
-                </TableCell>
-              </TableRow>
-            </SheetTrigger>
-            <MarketSheetContent marketId={market.id} marketParams={market.params} imarket={market} tokens={tokens} />
-          </Sheet>
-        ))}
-      </TableBody>
-    </Table>
+  // Render table cell for a column
+  const renderColumnCell = (columnId: ColumnId, market: Market, index: number, visibleColumns: ColumnConfig[]) => {
+    const isFirst = index === 0;
+    const isLast = index === visibleColumns.length - 1;
+    const baseClass = `${isFirst ? "rounded-l-lg py-3" : ""} ${isLast ? "rounded-r-lg" : ""}`;
+
+    switch (columnId) {
+      case "collateral":
+        return (
+          <TableCell key={columnId} className={baseClass}>
+            <TokenTableCell {...tokens.get(market.params.collateralToken)!} chain={chain} />
+          </TableCell>
+        );
+      case "loan":
+        return (
+          <TableCell key={columnId} className={baseClass}>
+            <TokenTableCell {...tokens.get(market.params.loanToken)!} chain={chain} />
+          </TableCell>
+        );
+      case "totalSupply":
+        return (
+          <TableCell key={columnId} className={baseClass}>
+            {tokens.get(market.params.loanToken)?.decimals !== undefined
+              ? formatBalanceWithSymbol(
+                  market.totalSupplyAssets,
+                  tokens.get(market.params.loanToken)!.decimals!,
+                  tokens.get(market.params.loanToken)!.symbol,
+                  5,
+                  true,
+                )
+              : "－"}
+          </TableCell>
+        );
+      case "liquidity":
+        return (
+          <TableCell key={columnId} className={baseClass}>
+            {tokens.get(market.params.loanToken)?.decimals !== undefined
+              ? formatBalanceWithSymbol(
+                  market.liquidity,
+                  tokens.get(market.params.loanToken)!.decimals!,
+                  tokens.get(market.params.loanToken)!.symbol,
+                  5,
+                  true,
+                )
+              : "－"}
+          </TableCell>
+        );
+      case "rate":
+        return (
+          <TableCell key={columnId} className={baseClass}>
+            <ApyTableCell nativeApy={market.borrowApy} rewards={borrowingRewards.get(market.id) ?? []} mode="owe" />
+          </TableCell>
+        );
+      case "utilization":
+        return (
+          <TableCell key={columnId} className={baseClass}>
+            {formatLtv(market.utilization)}
+          </TableCell>
+        );
+      case "lltv":
+        return (
+          <TableCell key={columnId} className={baseClass}>
+            {formatLtv(market.params.lltv)}
+          </TableCell>
+        );
+      case "vaultListing":
+        return (
+          <TableCell key={columnId} className={baseClass}>
+            <VaultsTableCell
+              token={tokens.get(market.params.loanToken)!}
+              vaults={marketVaults.get(market.params.id) ?? []}
+              chain={chain}
+            />
+          </TableCell>
+        );
+      case "id":
+        return (
+          <TableCell key={columnId} className={baseClass}>
+            <IdTableCell marketId={market.id} />
+          </TableCell>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const visibleColumns = columnConfigs.filter((col) => col.visible);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Column Configuration Manager */}
+      <div className="flex justify-end">
+        <ColumnConfigManager columns={columnConfigs} onColumnsChange={setColumnConfigs} />
+      </div>
+
+      <Table className="border-separate border-spacing-y-3">
+        <TableHeader className="bg-primary">
+          <TableRow>{visibleColumns.map((col, index) => renderColumnHeader(col.id, index, visibleColumns))}</TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredAndSortedMarkets.map((market) => (
+            <Sheet
+              key={market.id}
+              onOpenChange={(isOpen) => {
+                // Refetch positions on sidesheet close, since user may have sent txns to modify one
+                if (!isOpen) void refetchPositions();
+              }}
+            >
+              <SheetTrigger asChild>
+                <TableRow className="bg-primary hover:bg-secondary">
+                  {visibleColumns.map((col, index) => renderColumnCell(col.id, market, index, visibleColumns))}
+                </TableRow>
+              </SheetTrigger>
+              <MarketSheetContent marketId={market.id} marketParams={market.params} imarket={market} tokens={tokens} />
+            </Sheet>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
