@@ -5,7 +5,13 @@ import { CORE_DEPLOYMENTS } from "@morpho-org/uikit/lib/deployments";
 import { getChainSlug } from "@morpho-org/uikit/lib/utils";
 import { ConnectKitButton } from "connectkit";
 import { useCallback, useEffect, useMemo } from "react";
-import { Link, Outlet, useLocation, useNavigate, useParams } from "react-router";
+import {
+  Link,
+  Outlet,
+  // useLocation,
+  useNavigate,
+  useParams,
+} from "react-router";
 import { useChains } from "wagmi";
 
 import { Footer } from "@/components/footer";
@@ -16,8 +22,9 @@ import { RewardsButton } from "@/components/rewards-button";
 import { APP_DETAILS, WORDMARK } from "@/lib/constants";
 
 enum SubPage {
-  Earn = "earn",
-  Borrow = "borrow",
+  // Earn = "earn",
+  // Borrow = "borrow",
+  Market = "market",
 }
 
 function ConnectWalletButton() {
@@ -39,9 +46,10 @@ export default function Page() {
   const navigate = useNavigate();
   const { chain: selectedChainSlug } = useParams();
 
-  const location = useLocation();
-  const locationSegments = location.pathname.toLowerCase().split("/").slice(1);
-  const selectedSubPage = locationSegments.at(1) === SubPage.Borrow ? SubPage.Borrow : SubPage.Earn;
+  // const location = useLocation();
+  // const locationSegments = location.pathname.toLowerCase().split("/").slice(1);
+  // const selectedSubPage = locationSegments.at(1) === SubPage.Borrow ? SubPage.Borrow : SubPage.Earn;
+  const selectedSubPage = SubPage.Market;
 
   const chains = useChains();
   const chain = useMemo(
@@ -78,7 +86,7 @@ export default function Page() {
             <MorphoMenu />
           )}
           <div className="flex items-center gap-0.5 rounded-full bg-transparent p-1 md:gap-2">
-            <Link to={SubPage.Earn} relative="path">
+            {/* <Link to={SubPage.Earn} relative="path">
               <Button
                 variant={selectedSubPage === SubPage.Earn ? "tertiary" : "secondaryTab"}
                 size="lg"
@@ -94,6 +102,15 @@ export default function Page() {
                 className="rounded-full px-4 font-light md:px-6"
               >
                 Borrow
+              </Button>
+            </Link> */}
+            <Link to={SubPage.Market} relative="path">
+              <Button
+                variant={selectedSubPage === SubPage.Market ? "tertiary" : "secondaryTab"}
+                size="lg"
+                className="rounded-full px-4 font-light md:px-6"
+              >
+                Market
               </Button>
             </Link>
           </div>
