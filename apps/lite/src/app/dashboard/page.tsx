@@ -12,7 +12,7 @@ import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { MorphoMenu } from "@/components/morpho-menu";
 import { RewardsButton } from "@/components/rewards-button";
-import { WelcomeModal } from "@/components/welcome-modal";
+// import { WelcomeModal } from "@/components/welcome-modal";
 import { APP_DETAILS, WORDMARK } from "@/lib/constants";
 
 enum SubPage {
@@ -108,7 +108,7 @@ export default function Page() {
           />
         </div>
       </Header>
-      <WelcomeModal />
+      {/* <WelcomeModal /> */}
       <Outlet context={{ chain }} />
       <Footer />
     </div>

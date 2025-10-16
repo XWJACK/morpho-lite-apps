@@ -5,17 +5,17 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuPortal,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
+  // DropdownMenuLabel,
+  // DropdownMenuPortal,
+  // DropdownMenuSub,
+  // DropdownMenuSubContent,
+  // DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@morpho-org/uikit/components/shadcn/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { ReactNode } from "react";
 
-import { ADDRESSES_DOCUMENTATION, RISKS_DOCUMENTATION, TERMS_OF_USE } from "@/lib/constants";
+// import { ADDRESSES_DOCUMENTATION, RISKS_DOCUMENTATION, TERMS_OF_USE } from "@/lib/constants";
 
 function DropdownMenuLink({ children, href }: { children: ReactNode; href: string }) {
   return (
@@ -36,14 +36,14 @@ export function MorphoMenu() {
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent sideOffset={30} alignOffset={0} align="start" className="bg-card w-56 rounded-2xl p-2">
-        <DropdownMenuLabel className="font-normal">Company</DropdownMenuLabel>
+        {/* <DropdownMenuLabel className="font-normal">Company</DropdownMenuLabel> */}
         <DropdownMenuGroup>
-          <DropdownMenuLink href="https://morpho.org/">Morpho.org</DropdownMenuLink>
+          {/* <DropdownMenuLink href="https://morpho.org/">Morpho.org</DropdownMenuLink> */}
           <DropdownMenuLink href="https://app.morpho.org/">Full App</DropdownMenuLink>
-          <DropdownMenuLink href="https://morpho.org/jobs">Career</DropdownMenuLink>
-          <DropdownMenuLink href="https://blog.morpho.org/">Blog</DropdownMenuLink>
+          {/* <DropdownMenuLink href="https://morpho.org/jobs">Career</DropdownMenuLink> */}
+          {/* <DropdownMenuLink href="https://blog.morpho.org/">Blog</DropdownMenuLink> */}
         </DropdownMenuGroup>
-        <DropdownMenuLabel className="font-normal">Protocol</DropdownMenuLabel>
+        {/* <DropdownMenuLabel className="font-normal">Protocol</DropdownMenuLabel>
         <DropdownMenuGroup>
           <DropdownMenuLink href="https://delegate.morpho.org/">Delegate</DropdownMenuLink>
           <DropdownMenuLink href="https://rewards.morpho.org/">Rewards</DropdownMenuLink>
@@ -60,7 +60,7 @@ export function MorphoMenu() {
             </DropdownMenuPortal>
           </DropdownMenuSub>
           <DropdownMenuLink href={TERMS_OF_USE}>Terms</DropdownMenuLink>
-        </DropdownMenuGroup>
+        </DropdownMenuGroup> */}
       </DropdownMenuContent>
     </DropdownMenu>
   );

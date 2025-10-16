@@ -1,5 +1,9 @@
 import { blo } from "blo";
-import { ExternalLink, LoaderCircle, PowerOff } from "lucide-react";
+import {
+  // ExternalLink,
+  LoaderCircle,
+  PowerOff,
+} from "lucide-react";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { type Address } from "viem";
 import {
@@ -12,7 +16,7 @@ import {
   useSwitchChain,
 } from "wagmi";
 
-import MorphoSvg from "@/assets/morpho.svg?react";
+// import MorphoSvg from "@/assets/morpho.svg?react";
 import { ChainIcon } from "@/components/chain-icon";
 import { Avatar, AvatarImage } from "@/components/shadcn/avatar";
 import { Button } from "@/components/shadcn/button";
@@ -31,12 +35,12 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
-  SelectSeparator,
+  // SelectLabel,
+  // SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/shadcn/select";
-import { useModifierKey } from "@/hooks/use-modifier-key";
+// import { useModifierKey } from "@/hooks/use-modifier-key";
 import { abbreviateAddress, getChainSlug } from "@/lib/utils";
 
 function ConnectWalletButton() {
@@ -167,7 +171,7 @@ export function WalletMenu({
     }
   }, [status, didInitialSync, chainInWallet, chainInUi?.id, switchChain, setSelectedChainSlug]);
 
-  const isShiftHeld = useModifierKey("Shift");
+  // const isShiftHeld = useModifierKey("Shift");
 
   return (
     <>
@@ -192,14 +196,14 @@ export function WalletMenu({
         <SelectContent>
           <SelectGroup>
             {chains
-              .filter((chain) => !coreDeployments.has(chain.id))
+              .filter((chain) => coreDeployments.has(chain.id))
               .map((chain, idx) => (
                 <SelectItem key={idx} value={getChainSlug(chain)}>
                   <ChainIcon id={chain.id} /> {chain.name}
                 </SelectItem>
               ))}
           </SelectGroup>
-          {coreDeployments.size > 0 && (
+          {/* {coreDeployments.size > 0 && (
             <SelectGroup>
               {(isShiftHeld || (chainInUi !== undefined && coreDeployments.has(chainInUi?.id))) && (
                 <>
@@ -225,7 +229,7 @@ export function WalletMenu({
                 <MorphoSvg height={16} width={16} /> Full App <ExternalLink className="h-4 w-4" />
               </SelectLabel>
             </SelectGroup>
-          )}
+          )} */}
         </SelectContent>
       </Select>
       {status === "connected" && address ? <WalletButton address={address} /> : connectWalletButton}
