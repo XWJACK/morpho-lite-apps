@@ -656,7 +656,7 @@ export function MarketTable({
         return (
           <TableHead key={columnId} className={baseClass}>
             <FilterPopover
-              label="Collateral"
+              label={visibleColumns[index].label}
               tokens={collateralTokens}
               selectedValues={selectedCollaterals}
               onSelectionChange={setSelectedCollaterals}
@@ -667,7 +667,7 @@ export function MarketTable({
         return (
           <TableHead key={columnId} className={baseClass}>
             <FilterPopover
-              label="Loan"
+              label={visibleColumns[index].label}
               tokens={loanTokens}
               selectedValues={selectedLoans}
               onSelectionChange={setSelectedLoans}
@@ -681,7 +681,7 @@ export function MarketTable({
               onClick={() => handleSort("totalSupply")}
               className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
             >
-              <span>Total Market Size</span>
+              <span>{visibleColumns[index].label}</span>
               {sortState?.column !== "totalSupply" && <ArrowUpDown className="size-3 opacity-50" />}
               {sortState?.column === "totalSupply" && sortState.order === "asc" && <ArrowUp className="size-3" />}
               {sortState?.column === "totalSupply" && sortState.order === "desc" && <ArrowDown className="size-3" />}
@@ -696,7 +696,7 @@ export function MarketTable({
                 onClick={() => handleSort("liquidity")}
                 className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
               >
-                <span>Liquidity</span>
+                <span>{visibleColumns[index].label}</span>
                 {sortState?.column !== "liquidity" && <ArrowUpDown className="size-3 opacity-50" />}
                 {sortState?.column === "liquidity" && sortState.order === "asc" && <ArrowUp className="size-3" />}
                 {sortState?.column === "liquidity" && sortState.order === "desc" && <ArrowDown className="size-3" />}
@@ -730,7 +730,7 @@ export function MarketTable({
               onClick={() => handleSort("rate")}
               className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
             >
-              <span>Supply APY</span>
+              <span>{visibleColumns[index].label}</span>
               {sortState?.column !== "rate" && <ArrowUpDown className="size-3 opacity-50" />}
               {sortState?.column === "rate" && sortState.order === "asc" && <ArrowUp className="size-3" />}
               {sortState?.column === "rate" && sortState.order === "desc" && <ArrowDown className="size-3" />}
@@ -744,7 +744,7 @@ export function MarketTable({
               onClick={() => handleSort("utilization")}
               className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
             >
-              <span>Utilization</span>
+              <span>{visibleColumns[index].label}</span>
               {sortState?.column !== "utilization" && <ArrowUpDown className="size-3 opacity-50" />}
               {sortState?.column === "utilization" && sortState.order === "asc" && <ArrowUp className="size-3" />}
               {sortState?.column === "utilization" && sortState.order === "desc" && <ArrowDown className="size-3" />}
@@ -754,19 +754,19 @@ export function MarketTable({
       case "lltv":
         return (
           <TableHead key={columnId} className={baseClass}>
-            LLTV
+            {visibleColumns[index].label}
           </TableHead>
         );
       case "vaultListing":
         return (
           <TableHead key={columnId} className={baseClass}>
-            Vault Listing
+            {visibleColumns[index].label}
           </TableHead>
         );
       case "id":
         return (
           <TableHead key={columnId} className={baseClass}>
-            ID
+            {visibleColumns[index].label}
           </TableHead>
         );
       default:
