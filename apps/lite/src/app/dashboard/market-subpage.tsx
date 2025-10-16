@@ -12,8 +12,8 @@ import { useOutletContext } from "react-router";
 import { type Address, erc20Abi, type Chain, zeroAddress, type Hex } from "viem";
 import { useAccount, useReadContract, useReadContracts } from "wagmi";
 
-import { BorrowPositionTable, BorrowTable } from "@/components/borrow-table";
 import { CtaCard } from "@/components/cta-card";
+import { MarketPositionTable, MarketTable } from "@/components/market-table";
 import { useMarkets } from "@/hooks/use-markets";
 import * as Merkl from "@/hooks/use-merkl-campaigns";
 import { useMerklOpportunities } from "@/hooks/use-merkl-opportunities";
@@ -234,7 +234,7 @@ export function MarketSubPage() {
         userMarkets.length > 0 && (
           <div className="bg-linear-to-b lg:pt-22 flex h-fit w-full flex-col items-center from-transparent to-white/[0.03] pb-20">
             <div className="text-primary-foreground w-full max-w-7xl px-2 lg:px-8">
-              <BorrowPositionTable
+              <MarketPositionTable
                 chain={chain}
                 markets={userMarkets}
                 tokens={tokens}
@@ -253,7 +253,7 @@ export function MarketSubPage() {
       <div className="flex grow flex-col bg-white/[0.03]">
         <div className="bg-linear-to-b from-background to-primary flex h-full grow justify-center rounded-t-xl pb-16 pt-8">
           <div className="text-primary-foreground w-full max-w-7xl px-2 lg:px-8">
-            <BorrowTable
+            <MarketTable
               chain={chain}
               markets={marketsArr}
               tokens={tokens}
