@@ -383,6 +383,8 @@ export function MarketTable({
   const [selectedLoans, setSelectedLoans] = useState<Set<Address>>(new Set());
   const [rateSortOrder, setRateSortOrder] = useState<"asc" | "desc" | null>(null);
   const [liquiditySortOrder, setLiquiditySortOrder] = useState<"asc" | "desc" | null>(null);
+  const [utilizationSortOrder, setUtilizationSortOrder] = useState<"asc" | "desc" | null>(null);
+  const [totalSupplySortOrder, setTotalSupplySortOrder] = useState<"asc" | "desc" | null>(null);
 
   // Get unique tokens for filters
   const collateralOptions = useMemo(() => {
@@ -443,8 +445,46 @@ export function MarketTable({
       });
     }
 
+    // Apply utilization sorting
+    if (utilizationSortOrder) {
+      filtered.sort((a, b) => {
+        const utilizationA = a.utilization;
+        const utilizationB = b.utilization;
+        return utilizationSortOrder === "asc"
+          ? utilizationA > utilizationB
+            ? 1
+            : -1
+          : utilizationA < utilizationB
+            ? 1
+            : -1;
+      });
+    }
+
+    // Apply total supply sorting
+    if (totalSupplySortOrder) {
+      filtered.sort((a, b) => {
+        const totalSupplyA = a.totalSupplyAssets;
+        const totalSupplyB = b.totalSupplyAssets;
+        return totalSupplySortOrder === "asc"
+          ? totalSupplyA > totalSupplyB
+            ? 1
+            : -1
+          : totalSupplyA < totalSupplyB
+            ? 1
+            : -1;
+      });
+    }
+
     return filtered;
-  }, [markets, selectedCollaterals, selectedLoans, rateSortOrder, liquiditySortOrder]);
+  }, [
+    markets,
+    selectedCollaterals,
+    selectedLoans,
+    rateSortOrder,
+    liquiditySortOrder,
+    utilizationSortOrder,
+    totalSupplySortOrder,
+  ]);
 
   return (
     <Table className="border-separate border-spacing-y-3">
@@ -471,6 +511,11 @@ export function MarketTable({
             <div className="flex items-center gap-1">
               <button
                 onClick={() => {
+                  // Clear other sort states
+                  setRateSortOrder(null);
+                  setUtilizationSortOrder(null);
+                  setTotalSupplySortOrder(null);
+
                   if (liquiditySortOrder === null) setLiquiditySortOrder("desc");
                   else if (liquiditySortOrder === "desc") setLiquiditySortOrder("asc");
                   else setLiquiditySortOrder(null);
@@ -506,6 +551,11 @@ export function MarketTable({
           <TableHead className="text-secondary-foreground text-xs font-light">
             <button
               onClick={() => {
+                // Clear other sort states
+                setLiquiditySortOrder(null);
+                setUtilizationSortOrder(null);
+                setTotalSupplySortOrder(null);
+
                 if (rateSortOrder === null) setRateSortOrder("desc");
                 else if (rateSortOrder === "desc") setRateSortOrder("asc");
                 else setRateSortOrder(null);
@@ -516,6 +566,46 @@ export function MarketTable({
               {rateSortOrder === null && <ArrowUpDown className="size-3 opacity-50" />}
               {rateSortOrder === "asc" && <ArrowUp className="size-3" />}
               {rateSortOrder === "desc" && <ArrowDown className="size-3" />}
+            </button>
+          </TableHead>
+          <TableHead className="text-secondary-foreground text-xs font-light">
+            <button
+              onClick={() => {
+                // Clear other sort states
+                setRateSortOrder(null);
+                setLiquiditySortOrder(null);
+                setTotalSupplySortOrder(null);
+
+                if (utilizationSortOrder === null) setUtilizationSortOrder("desc");
+                else if (utilizationSortOrder === "desc") setUtilizationSortOrder("asc");
+                else setUtilizationSortOrder(null);
+              }}
+              className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
+            >
+              <span>Utilization</span>
+              {utilizationSortOrder === null && <ArrowUpDown className="size-3 opacity-50" />}
+              {utilizationSortOrder === "asc" && <ArrowUp className="size-3" />}
+              {utilizationSortOrder === "desc" && <ArrowDown className="size-3" />}
+            </button>
+          </TableHead>
+          <TableHead className="text-secondary-foreground text-xs font-light">
+            <button
+              onClick={() => {
+                // Clear other sort states
+                setRateSortOrder(null);
+                setLiquiditySortOrder(null);
+                setUtilizationSortOrder(null);
+
+                if (totalSupplySortOrder === null) setTotalSupplySortOrder("desc");
+                else if (totalSupplySortOrder === "desc") setTotalSupplySortOrder("asc");
+                else setTotalSupplySortOrder(null);
+              }}
+              className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
+            >
+              <span>Total Market Size</span>
+              {totalSupplySortOrder === null && <ArrowUpDown className="size-3 opacity-50" />}
+              {totalSupplySortOrder === "asc" && <ArrowUp className="size-3" />}
+              {totalSupplySortOrder === "desc" && <ArrowDown className="size-3" />}
             </button>
           </TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">Vault Listing</TableHead>
@@ -557,6 +647,18 @@ export function MarketTable({
                     rewards={borrowingRewards.get(market.id) ?? []}
                     mode="owe"
                   />
+                </TableCell>
+                <TableCell>{formatLtv(market.utilization)}</TableCell>
+                <TableCell>
+                  {tokens.get(market.params.loanToken)?.decimals !== undefined
+                    ? formatBalanceWithSymbol(
+                        market.totalSupplyAssets,
+                        tokens.get(market.params.loanToken)!.decimals!,
+                        tokens.get(market.params.loanToken)!.symbol,
+                        5,
+                        true,
+                      )
+                    : "－"}
                 </TableCell>
                 <TableCell>
                   <VaultsTableCell
