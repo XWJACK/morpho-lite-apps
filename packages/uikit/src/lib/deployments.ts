@@ -166,7 +166,7 @@ export const DEPLOYMENTS: Deployments = {
 export const CORE_DEPLOYMENTS = new Set<keyof Deployments>([
   mainnet.id,
   base.id,
-  polygon.id,
+  // polygon.id,
   unichain.id,
   // customChains.katana.id,
   ink.id,

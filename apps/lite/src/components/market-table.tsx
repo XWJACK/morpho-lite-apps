@@ -32,7 +32,7 @@ import {
   Settings2,
   // X
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type Chain, type Hex, type Address } from "viem";
 
 import { MarketSheetContent } from "@/components/market-sheet-content";
@@ -550,6 +550,13 @@ export function MarketTable({
     order: "asc" | "desc";
   };
   const [sortState, setSortState] = useState<SortState | null>(null);
+
+  // Reset filter and sort states when chain changes
+  useEffect(() => {
+    setSelectedCollaterals(new Set());
+    setSelectedLoans(new Set());
+    setSortState(null);
+  }, [chain?.id]);
 
   // Helper function to handle sort toggle
   const handleSort = (column: SortColumn) => {
