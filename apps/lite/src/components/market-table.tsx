@@ -513,7 +513,17 @@ export function MarketTable({
               onSelectionChange={setSelectedLoans}
             />
           </TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">LLTV</TableHead>
+          <TableHead className="text-secondary-foreground text-xs font-light">
+            <button
+              onClick={() => handleSort("totalSupply")}
+              className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
+            >
+              <span>Total Market Size</span>
+              {sortState?.column !== "totalSupply" && <ArrowUpDown className="size-3 opacity-50" />}
+              {sortState?.column === "totalSupply" && sortState.order === "asc" && <ArrowUp className="size-3" />}
+              {sortState?.column === "totalSupply" && sortState.order === "desc" && <ArrowDown className="size-3" />}
+            </button>
+          </TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">
             <div className="flex items-center gap-1">
               <button
@@ -551,7 +561,7 @@ export function MarketTable({
               onClick={() => handleSort("rate")}
               className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
             >
-              <span>Rate</span>
+              <span>Supply APY</span>
               {sortState?.column !== "rate" && <ArrowUpDown className="size-3 opacity-50" />}
               {sortState?.column === "rate" && sortState.order === "asc" && <ArrowUp className="size-3" />}
               {sortState?.column === "rate" && sortState.order === "desc" && <ArrowDown className="size-3" />}
@@ -568,17 +578,7 @@ export function MarketTable({
               {sortState?.column === "utilization" && sortState.order === "desc" && <ArrowDown className="size-3" />}
             </button>
           </TableHead>
-          <TableHead className="text-secondary-foreground text-xs font-light">
-            <button
-              onClick={() => handleSort("totalSupply")}
-              className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
-            >
-              <span>Total Market Size</span>
-              {sortState?.column !== "totalSupply" && <ArrowUpDown className="size-3 opacity-50" />}
-              {sortState?.column === "totalSupply" && sortState.order === "asc" && <ArrowUp className="size-3" />}
-              {sortState?.column === "totalSupply" && sortState.order === "desc" && <ArrowDown className="size-3" />}
-            </button>
-          </TableHead>
+          <TableHead className="text-secondary-foreground text-xs font-light">LLTV</TableHead>
           <TableHead className="text-secondary-foreground text-xs font-light">Vault Listing</TableHead>
           <TableHead className="text-secondary-foreground rounded-r-lg text-xs font-light">ID</TableHead>
         </TableRow>
@@ -600,7 +600,18 @@ export function MarketTable({
                 <TableCell>
                   <TokenTableCell {...tokens.get(market.params.loanToken)!} chain={chain} />
                 </TableCell>
-                <TableCell>{formatLtv(market.params.lltv)}</TableCell>
+
+                <TableCell>
+                  {tokens.get(market.params.loanToken)?.decimals !== undefined
+                    ? formatBalanceWithSymbol(
+                        market.totalSupplyAssets,
+                        tokens.get(market.params.loanToken)!.decimals!,
+                        tokens.get(market.params.loanToken)!.symbol,
+                        5,
+                        true,
+                      )
+                    : "－"}
+                </TableCell>
                 <TableCell>
                   {tokens.get(market.params.loanToken)?.decimals !== undefined
                     ? formatBalanceWithSymbol(
@@ -620,17 +631,7 @@ export function MarketTable({
                   />
                 </TableCell>
                 <TableCell>{formatLtv(market.utilization)}</TableCell>
-                <TableCell>
-                  {tokens.get(market.params.loanToken)?.decimals !== undefined
-                    ? formatBalanceWithSymbol(
-                        market.totalSupplyAssets,
-                        tokens.get(market.params.loanToken)!.decimals!,
-                        tokens.get(market.params.loanToken)!.symbol,
-                        5,
-                        true,
-                      )
-                    : "－"}
-                </TableCell>
+                <TableCell>{formatLtv(market.params.lltv)}</TableCell>
                 <TableCell>
                   <VaultsTableCell
                     token={tokens.get(market.params.loanToken)!}
