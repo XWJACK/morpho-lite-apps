@@ -621,8 +621,8 @@ export function MarketTable({
             valueB = b.liquidity;
             break;
           case "rate":
-            valueA = a.borrowApy;
-            valueB = b.borrowApy;
+            valueA = a.getSupplyApy();
+            valueB = b.getSupplyApy();
             break;
           case "utilization":
             valueA = a.utilization;
@@ -824,7 +824,11 @@ export function MarketTable({
       case "rate":
         return (
           <TableCell key={columnId} className={baseClass}>
-            <ApyTableCell nativeApy={market.borrowApy} rewards={borrowingRewards.get(market.id) ?? []} mode="owe" />
+            <ApyTableCell
+              nativeApy={market.getSupplyApy()}
+              rewards={borrowingRewards.get(market.id) ?? []}
+              mode="owe"
+            />
           </TableCell>
         );
       case "utilization":
@@ -960,7 +964,7 @@ export function MarketPositionTable({
                   </TableCell>
                   <TableCell>
                     <ApyTableCell
-                      nativeApy={market.borrowApy}
+                      nativeApy={market.getSupplyApy()}
                       rewards={borrowingRewards.get(market.id) ?? []}
                       mode="owe"
                     />
