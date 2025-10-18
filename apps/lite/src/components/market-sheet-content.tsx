@@ -4,6 +4,7 @@ import {
   Market,
   MarketId,
   MarketParams,
+  MarketUtils,
   Position,
 } from "@morpho-org/blue-sdk";
 import { morphoAbi } from "@morpho-org/uikit/assets/abis/morpho";
@@ -33,7 +34,7 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Toaster } from "sonner";
-import { Address, erc20Abi, parseUnits } from "viem";
+import { Address, erc20Abi, maxUint256, parseUnits } from "viem";
 import { useAccount, useChainId, useReadContract, useReadContracts } from "wagmi";
 
 import { RISKS_DOCUMENTATION, TRANSACTION_DATA_SUFFIX } from "@/lib/constants";
@@ -88,6 +89,7 @@ export function MarketSheetContent({
 
   const [selectedTab, setSelectedTab] = useState(Actions.Supply);
   const [textInputValue, setTextInputValue] = useState("");
+  const [approveUnlimited, setApproveUnlimited] = useState(true);
 
   const morpho = getContractDeploymentInfo(chainId, "Morpho").address;
 
@@ -187,15 +189,17 @@ export function MarketSheetContent({
   }
 
   // Approval is only needed for SupplyCollateral now
-  const approvalTxnConfig =
-    token !== undefined && inputValue !== undefined && allowances !== undefined && allowances[0] < inputValue // Only check collateral token allowance
-      ? ({
-          address: token.address,
-          abi: erc20Abi,
-          functionName: "approve",
-          args: [morpho, inputValue],
-        } as const)
-      : undefined;
+  const needsApproval =
+    token !== undefined && inputValue !== undefined && allowances !== undefined && allowances[0] < inputValue;
+
+  const approvalTxnConfig = needsApproval
+    ? ({
+        address: token.address,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [morpho, approveUnlimited ? maxUint256 : inputValue],
+      } as const)
+    : undefined;
 
   const supplyTxnConfig =
     inputValue !== undefined && userAddress !== undefined
@@ -215,7 +219,13 @@ export function MarketSheetContent({
           abi: morphoAbi,
           functionName: "withdraw",
           // TODO: Fix input
-          args: [{ ...marketParams }, 0n, position?.supplyShares ?? 0n, userAddress, userAddress],
+          args: [
+            { ...marketParams },
+            0n,
+            market != null ? MarketUtils.toSupplyShares(position?.supplyShares ?? 0n, market) : 0n,
+            userAddress,
+            userAddress,
+          ],
           dataSuffix: TRANSACTION_DATA_SUFFIX,
         } as const)
       : undefined;
@@ -321,13 +331,41 @@ export function MarketSheetContent({
               onChange={setTextInputValue}
             />
           </div>
+          {needsApproval && (
+            <div className="bg-primary/50 mt-3 flex items-center justify-between rounded-lg px-4 py-3">
+              <div className="flex flex-col gap-1">
+                {/* <span className="text-sm font-medium">Approve Unlimited</span> */}
+                <span className="text-secondary-foreground text-xs">
+                  {approveUnlimited
+                    ? "Approve unlimited amount for future transactions"
+                    : "Approve only the amount you're supplying"}
+                </span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={approveUnlimited}
+                onClick={() => setApproveUnlimited(!approveUnlimited)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 ${
+                  approveUnlimited ? "bg-blue-600" : "bg-gray-700"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    approveUnlimited ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
           {approvalTxnConfig ? (
             <TransactionButton
               variables={approvalTxnConfig}
               disabled={inputValue === 0n}
               onTxnReceipt={() => refetchAllowances()}
             >
-              Approve
+              Approve {approveUnlimited ? "Unlimited" : ""}
             </TransactionButton>
           ) : (
             <TransactionButton
