@@ -213,19 +213,12 @@ export function MarketSheetContent({
       : undefined;
 
   const withdrawTxnConfig =
-    inputValue !== undefined && userAddress !== undefined
+    inputValue !== undefined && userAddress !== undefined && market != undefined
       ? ({
           address: morpho,
           abi: morphoAbi,
           functionName: "withdraw",
-          // TODO: Fix input
-          args: [
-            { ...marketParams },
-            0n,
-            market != null ? MarketUtils.toSupplyShares(position?.supplyShares ?? 0n, market) : 0n,
-            userAddress,
-            userAddress,
-          ],
+          args: [{ ...marketParams }, 0n, MarketUtils.toSupplyShares(inputValue, market), userAddress, userAddress],
           dataSuffix: TRANSACTION_DATA_SUFFIX,
         } as const)
       : undefined;
