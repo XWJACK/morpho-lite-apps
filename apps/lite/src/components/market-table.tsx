@@ -383,6 +383,83 @@ function FilterPopover({
   );
 }
 
+// ID Filter Popover Component
+function IdFilterPopover({
+  label,
+  filterValue,
+  onFilterChange,
+}: {
+  label: string;
+  filterValue: string;
+  onFilterChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(filterValue);
+
+  useEffect(() => {
+    setInputValue(filterValue);
+  }, [filterValue]);
+
+  const handleApply = () => {
+    onFilterChange(inputValue);
+    setIsOpen(false);
+  };
+
+  const handleClear = () => {
+    setInputValue("");
+    onFilterChange("");
+    setIsOpen(false);
+  };
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="secondaryTab"
+          size="sm"
+          className="hover:bg-secondary flex h-8 items-center gap-1 rounded-full px-3 text-xs font-light"
+        >
+          {label}
+          {filterValue && (
+            <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] text-white">
+              ✓
+            </span>
+          )}
+          <ChevronDown className="size-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="start">
+        <div className="flex flex-col">
+          {/* Input */}
+          <div className="p-3">
+            <Input
+              placeholder="Enter Market ID..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleApply();
+                }
+              }}
+              className="font-mono text-xs"
+            />
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-2 border-t p-2">
+            <Button variant="ghost" size="sm" onClick={handleClear} className="flex-1 text-xs">
+              Clear
+            </Button>
+            <Button variant="default" size="sm" onClick={handleApply} className="flex-1 text-xs">
+              Apply
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // Column Configuration Types
 type ColumnId =
   | "collateral"
@@ -542,6 +619,7 @@ export function MarketTable({
   // Filter states
   const [selectedCollaterals, setSelectedCollaterals] = useState<Set<Address>>(new Set());
   const [selectedLoans, setSelectedLoans] = useState<Set<Address>>(new Set());
+  const [idFilter, setIdFilter] = useState<string>("");
 
   // Sort state - use single state object for all sortable columns
   type SortColumn = "liquidity" | "rate" | "utilization" | "totalSupply";
@@ -555,6 +633,7 @@ export function MarketTable({
   useEffect(() => {
     setSelectedCollaterals(new Set());
     setSelectedLoans(new Set());
+    setIdFilter("");
     setSortState(null);
   }, [chain?.id]);
 
@@ -608,6 +687,12 @@ export function MarketTable({
       filtered = filtered.filter((market) => selectedLoans.has(market.params.loanToken));
     }
 
+    // Apply ID filter
+    if (idFilter.trim() !== "") {
+      const filterLower = idFilter.toLowerCase().trim();
+      filtered = filtered.filter((market) => market.id.toLowerCase().includes(filterLower));
+    }
+
     // Apply sorting based on current sort state
     if (sortState) {
       filtered.sort((a, b) => {
@@ -643,7 +728,7 @@ export function MarketTable({
     }
 
     return filtered;
-  }, [markets, selectedCollaterals, selectedLoans, sortState]);
+  }, [markets, selectedCollaterals, selectedLoans, idFilter, sortState]);
 
   // Render table header for a column
   const renderColumnHeader = (columnId: ColumnId, index: number, visibleColumns: ColumnConfig[]) => {
@@ -766,7 +851,7 @@ export function MarketTable({
       case "id":
         return (
           <TableHead key={columnId} className={baseClass}>
-            {visibleColumns[index].label}
+            <IdFilterPopover label={visibleColumns[index].label} filterValue={idFilter} onFilterChange={setIdFilter} />
           </TableHead>
         );
       default:
