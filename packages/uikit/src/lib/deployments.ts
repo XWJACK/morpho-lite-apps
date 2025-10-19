@@ -174,6 +174,7 @@ export const CORE_DEPLOYMENTS = new Set<keyof Deployments>([
   arbitrum.id,
   worldchain.id,
   soneium.id,
+  customChains.hyperevm.id,
 ]);
 
 export function getContractDeploymentInfo(chainId: number, name: OptionalContracts): DeploymentDetails | undefined;
