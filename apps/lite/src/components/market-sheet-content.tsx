@@ -4,7 +4,6 @@ import {
   Market,
   MarketId,
   MarketParams,
-  MarketUtils,
   Position,
 } from "@morpho-org/blue-sdk";
 import { morphoAbi } from "@morpho-org/uikit/assets/abis/morpho";
@@ -26,6 +25,7 @@ import { getContractDeploymentInfo } from "@morpho-org/uikit/lib/deployments";
 import {
   // tryFormatBalance, formatLtv,
   Token,
+  formatApy,
 } from "@morpho-org/uikit/lib/utils";
 import { keepPreviousData } from "@tanstack/react-query";
 import {
@@ -44,6 +44,38 @@ enum Actions {
   Withdraw = "Withdraw",
   // Borrow = "Borrow",
   // Repay = "Repay",
+}
+
+// APY Change Display Component
+function ApyChangeDisplay({
+  inputValue,
+  currentApy,
+  newApy,
+}: {
+  inputValue: bigint | undefined;
+  currentApy: bigint | undefined;
+  newApy: bigint | undefined;
+}) {
+  if (inputValue === undefined || inputValue <= 0n || currentApy === undefined) {
+    return null;
+  }
+
+  return (
+    <div className="border-secondary flex items-center justify-between border-t pt-2">
+      <span className="text-secondary-foreground text-xs">APY Change</span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium">{formatApy(currentApy)}</span>
+        {newApy !== undefined && (
+          <>
+            <span className="text-secondary-foreground">→</span>
+            <span className={`text-sm font-medium ${newApy > currentApy ? "text-green-500" : "text-orange-500"}`}>
+              {formatApy(newApy)}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // function PositionProperty({ current, updated }: { current: string; updated?: string }) {
@@ -188,6 +220,36 @@ export function MarketSheetContent({
       (position.supplyShares * (market.totalSupplyAssets + 1n)) / (market.totalSupplyShares + 1000000n);
   }
 
+  // Calculate new APY after supply or withdraw
+  const { currentApy, newApy } = useMemo(() => {
+    const currentApy = market?.getSupplyApy();
+
+    // TODO: Implement actual APY calculation logic
+    // For now, using a placeholder calculation
+    let newApy: bigint | undefined = undefined;
+    if (currentApy !== undefined && inputValue !== undefined && inputValue > 0n && market !== undefined) {
+      // Placeholder calculation
+      // Real implementation should calculate the new APY based on:
+      // - New total supply (current supply +/- inputValue depending on action)
+      // - Market utilization changes
+      // - Interest rate model parameters
+      // - Market dynamics
+
+      // Different logic for supply vs withdraw
+      if (selectedTab === Actions.Supply) {
+        // Supply increases total supply, typically decreases APY
+        // For now, keeping the same APY as placeholder
+        newApy = currentApy;
+      } else if (selectedTab === Actions.Withdraw) {
+        // Withdraw decreases total supply, typically increases APY
+        // For now, keeping the same APY as placeholder
+        newApy = currentApy;
+      }
+    }
+
+    return { currentApy, newApy };
+  }, [market, inputValue, selectedTab]);
+
   // Approval is only needed for SupplyCollateral now
   const needsApproval =
     token !== undefined && inputValue !== undefined && allowances !== undefined && allowances[0] < inputValue;
@@ -218,7 +280,14 @@ export function MarketSheetContent({
           address: morpho,
           abi: morphoAbi,
           functionName: "withdraw",
-          args: [{ ...marketParams }, 0n, MarketUtils.toSupplyShares(inputValue, market), userAddress, userAddress],
+          args: [
+            { ...marketParams },
+            0n,
+            // MarketUtils.toSupplyShares(inputValue, market),
+            position?.supplyShares ?? 0n,
+            userAddress,
+            userAddress,
+          ],
           dataSuffix: TRANSACTION_DATA_SUFFIX,
         } as const)
       : undefined;
@@ -323,6 +392,7 @@ export function MarketSheetContent({
               maxValue={balances?.[0]}
               onChange={setTextInputValue}
             />
+            <ApyChangeDisplay inputValue={inputValue} currentApy={currentApy} newApy={newApy} />
           </div>
           {needsApproval && (
             <div className="bg-primary/50 mt-3 flex items-center justify-between rounded-lg px-4 py-3">
@@ -382,6 +452,7 @@ export function MarketSheetContent({
               maxValue={withdrawCollateralMax}
               onChange={setTextInputValue}
             />
+            <ApyChangeDisplay inputValue={inputValue} currentApy={currentApy} newApy={newApy} />
           </div>
           <TransactionButton variables={withdrawTxnConfig} disabled={!inputValue} onTxnReceipt={onTxnReceipt}>
             Withdraw
