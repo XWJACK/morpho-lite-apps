@@ -33,7 +33,7 @@ import {
   // X
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { type Chain, type Hex, type Address } from "viem";
+import { type Chain, type Hex, type Address, formatUnits } from "viem";
 
 import { MarketSheetContent } from "@/components/market-sheet-content";
 import { ApyTableCell } from "@/components/table-cells/apy-table-cell";
@@ -699,12 +699,18 @@ export function MarketTable({
         let valueA: bigint;
         let valueB: bigint;
 
+        const loanTokenA = tokens.get(a.params.loanToken)!;
+        const loanTokenB = tokens.get(b.params.loanToken)!;
+
         // Get values based on sort column
         switch (sortState.column) {
-          case "liquidity":
-            valueA = a.liquidity;
-            valueB = b.liquidity;
-            break;
+          case "liquidity": {
+            const valueALiquidity = parseFloat(formatUnits(a.liquidity, loanTokenA.decimals!));
+            const valueBLiquidity = parseFloat(formatUnits(b.liquidity, loanTokenB.decimals!));
+            const comparison_liquidity =
+              valueALiquidity > valueBLiquidity ? 1 : valueALiquidity < valueBLiquidity ? -1 : 0;
+            return sortState.order === "asc" ? comparison_liquidity : -comparison_liquidity;
+          }
           case "rate":
             valueA = a.getSupplyApy();
             valueB = b.getSupplyApy();
@@ -713,10 +719,13 @@ export function MarketTable({
             valueA = a.utilization;
             valueB = b.utilization;
             break;
-          case "totalSupply":
-            valueA = a.totalSupplyAssets;
-            valueB = b.totalSupplyAssets;
-            break;
+          case "totalSupply": {
+            const valueATotalSupply = parseFloat(formatUnits(a.totalSupplyAssets, loanTokenA.decimals!));
+            const valueBTotalSupply = parseFloat(formatUnits(b.totalSupplyAssets, loanTokenB.decimals!));
+            const comparison_totalSupply =
+              valueATotalSupply > valueBTotalSupply ? 1 : valueATotalSupply < valueBTotalSupply ? -1 : 0;
+            return sortState.order === "asc" ? comparison_totalSupply : -comparison_totalSupply;
+          }
           default:
             return 0;
         }
