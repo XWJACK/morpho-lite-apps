@@ -68,7 +68,7 @@ function ApyChangeDisplay({
         {newApy !== undefined && (
           <>
             <span className="text-secondary-foreground">→</span>
-            <span className={`text-sm font-medium ${newApy > currentApy ? "text-green-500" : "text-orange-500"}`}>
+            <span className={`text-sm font-medium ${newApy >= currentApy ? "text-green-500" : "text-red-500"}`}>
               {formatApy(newApy)}
             </span>
           </>
@@ -224,26 +224,40 @@ export function MarketSheetContent({
   const { currentApy, newApy } = useMemo(() => {
     const currentApy = market?.getSupplyApy();
 
-    // TODO: Implement actual APY calculation logic
-    // For now, using a placeholder calculation
     let newApy: bigint | undefined = undefined;
     if (currentApy !== undefined && inputValue !== undefined && inputValue > 0n && market !== undefined) {
-      // Placeholder calculation
-      // Real implementation should calculate the new APY based on:
-      // - New total supply (current supply +/- inputValue depending on action)
-      // - Market utilization changes
-      // - Interest rate model parameters
-      // - Market dynamics
+      // Simulate the market state after supply or withdraw
+      // Based on Market.supply() and Market.withdraw() in blue-sdk
 
-      // Different logic for supply vs withdraw
-      if (selectedTab === Actions.Supply) {
-        // Supply increases total supply, typically decreases APY
-        // For now, keeping the same APY as placeholder
-        newApy = currentApy;
-      } else if (selectedTab === Actions.Withdraw) {
-        // Withdraw decreases total supply, typically increases APY
-        // For now, keeping the same APY as placeholder
-        newApy = currentApy;
+      try {
+        let simulatedMarket: Market;
+
+        if (selectedTab === Actions.Supply) {
+          // Supply: increases totalSupplyAssets
+          // Using Market.supply() method which:
+          // 1. Accrues interest
+          // 2. Adds assets to totalSupplyAssets and totalSupplyShares
+          const { market: newMarket } = market.supply(inputValue, 0n);
+          simulatedMarket = newMarket;
+        } else if (selectedTab === Actions.Withdraw) {
+          // Withdraw: decreases totalSupplyAssets
+          // Using Market.withdraw() method which:
+          // 1. Accrues interest
+          // 2. Subtracts assets from totalSupplyAssets and totalSupplyShares
+          const { market: newMarket } = market.withdraw(inputValue, 0n);
+          simulatedMarket = newMarket;
+        } else {
+          return { currentApy, newApy: undefined };
+        }
+
+        // Calculate the new APY from the simulated market
+        // The APY formula in blue-sdk is: supplyApy = borrowApy * utilization * (1 - fee)
+        // When supply changes, utilization changes, which affects supply APY
+        newApy = simulatedMarket.getSupplyApy();
+      } catch (error) {
+        // If simulation fails (e.g., insufficient liquidity), keep newApy undefined
+        console.warn("APY simulation failed:", error);
+        newApy = undefined;
       }
     }
 
