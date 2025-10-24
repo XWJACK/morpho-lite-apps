@@ -32,7 +32,8 @@ import {
   Settings2,
   // X
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { type Chain, type Hex, type Address, formatUnits } from "viem";
 
 import { MarketSheetContent } from "@/components/market-sheet-content";
@@ -588,6 +589,19 @@ function ColumnConfigManager({
   );
 }
 
+// Default column configurations (defined outside component to avoid recreating on each render)
+const DEFAULT_COLUMN_CONFIGS: ColumnConfig[] = [
+  { id: "collateral", label: "Collateral", visible: true, sortable: false },
+  { id: "loan", label: "Loan", visible: true, sortable: false },
+  { id: "totalSupply", label: "Total Market Size", visible: true, sortable: true },
+  { id: "liquidity", label: "Liquidity", visible: true, sortable: true },
+  { id: "rate", label: "Supply APY", visible: true, sortable: true },
+  { id: "utilization", label: "Utilization", visible: true, sortable: true },
+  { id: "lltv", label: "LLTV", visible: true, sortable: false },
+  { id: "vaultListing", label: "Trusted By", visible: true, sortable: false },
+  { id: "id", label: "ID", visible: true, sortable: false },
+];
+
 export function MarketTable({
   chain,
   markets,
@@ -603,23 +617,12 @@ export function MarketTable({
   borrowingRewards: ReturnType<typeof useMerklOpportunities>;
   refetchPositions: () => void;
 }) {
-  // Column configuration state
-  const [columnConfigs, setColumnConfigs] = useState<ColumnConfig[]>([
-    { id: "collateral", label: "Collateral", visible: true, sortable: false },
-    { id: "loan", label: "Loan", visible: true, sortable: false },
-    { id: "totalSupply", label: "Total Market Size", visible: true, sortable: true },
-    { id: "liquidity", label: "Liquidity", visible: true, sortable: true },
-    { id: "rate", label: "Supply APY", visible: true, sortable: true },
-    { id: "utilization", label: "Utilization", visible: true, sortable: true },
-    { id: "lltv", label: "LLTV", visible: true, sortable: false },
-    { id: "vaultListing", label: "Trusted By", visible: true, sortable: false },
-    { id: "id", label: "ID", visible: true, sortable: false },
-  ]);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Filter states
-  const [selectedCollaterals, setSelectedCollaterals] = useState<Set<Address>>(new Set());
-  const [selectedLoans, setSelectedLoans] = useState<Set<Address>>(new Set());
-  const [idFilter, setIdFilter] = useState<string>("");
+  // Use a ref to track if we're syncing from URL to avoid infinite loops
+  const isSyncingFromURL = useRef(false);
+  // Use a ref to track the previous chainId to detect actual changes
+  const prevChainIdRef = useRef<number | undefined>(undefined);
 
   // Sort state - use single state object for all sortable columns
   type SortColumn = "liquidity" | "rate" | "utilization" | "totalSupply";
@@ -627,14 +630,126 @@ export function MarketTable({
     column: SortColumn | null;
     order: "asc" | "desc";
   };
+
+  // State initialization
+  const [columnConfigs, setColumnConfigs] = useState<ColumnConfig[]>(DEFAULT_COLUMN_CONFIGS);
+  const [selectedCollaterals, setSelectedCollaterals] = useState<Set<Address>>(new Set());
+  const [selectedLoans, setSelectedLoans] = useState<Set<Address>>(new Set());
+  const [idFilter, setIdFilter] = useState<string>("");
   const [sortState, setSortState] = useState<SortState | null>(null);
 
-  // Reset filter and sort states when chain changes
+  // Sync state FROM URL params when searchParams change
   useEffect(() => {
-    setSelectedCollaterals(new Set());
-    setSelectedLoans(new Set());
-    setIdFilter("");
-    setSortState(null);
+    isSyncingFromURL.current = true;
+
+    // Parse collateral filters
+    const collateralParam = searchParams.get("collateral");
+    if (collateralParam) {
+      const addresses = collateralParam.split(",").filter((x: string) => x) as Address[];
+      setSelectedCollaterals(new Set(addresses));
+    } else {
+      setSelectedCollaterals(new Set());
+    }
+
+    // Parse loan filters
+    const loanParam = searchParams.get("loan");
+    if (loanParam) {
+      const addresses = loanParam.split(",").filter((x: string) => x) as Address[];
+      setSelectedLoans(new Set(addresses));
+    } else {
+      setSelectedLoans(new Set());
+    }
+
+    // Parse ID filter
+    const idParam = searchParams.get("id");
+    setIdFilter(idParam || "");
+
+    // Parse sort state
+    const sortColumn = searchParams.get("sortBy") as SortColumn | null;
+    const sortOrder = searchParams.get("sortOrder") as "asc" | "desc" | null;
+    console.log("🔍 Parsing URL params - sortBy:", sortColumn, "sortOrder:", sortOrder);
+    if (sortColumn && sortOrder && ["liquidity", "rate", "utilization", "totalSupply"].includes(sortColumn)) {
+      console.log("✅ Setting sort state:", { column: sortColumn, order: sortOrder });
+      setSortState({ column: sortColumn, order: sortOrder });
+    } else {
+      console.log("❌ Sort state not set - column or order missing or invalid");
+      setSortState(null);
+    }
+
+    // Parse column visibility
+    const columnsParam = searchParams.get("columns");
+    if (columnsParam) {
+      const visibleColumnIds = columnsParam.split(",").filter((x: string) => x);
+      setColumnConfigs(
+        DEFAULT_COLUMN_CONFIGS.map((col) => ({
+          ...col,
+          visible: visibleColumnIds.includes(col.id),
+        })),
+      );
+    } else {
+      setColumnConfigs(DEFAULT_COLUMN_CONFIGS);
+    }
+
+    // Reset the sync flag after a small delay
+    setTimeout(() => {
+      isSyncingFromURL.current = false;
+    }, 0);
+  }, [searchParams]);
+
+  // Update URL when filters or sort change (but not when syncing FROM URL)
+  useEffect(() => {
+    // Skip if we're currently syncing from URL to avoid infinite loop
+    if (isSyncingFromURL.current) {
+      return;
+    }
+
+    const params = new URLSearchParams();
+
+    // Add collateral filter to URL
+    if (selectedCollaterals.size > 0) {
+      params.set("collateral", Array.from(selectedCollaterals).join(","));
+    }
+
+    // Add loan filter to URL
+    if (selectedLoans.size > 0) {
+      params.set("loan", Array.from(selectedLoans).join(","));
+    }
+
+    // Add ID filter to URL
+    if (idFilter.trim()) {
+      params.set("id", idFilter.trim());
+    }
+
+    // Add sort state to URL
+    if (sortState) {
+      params.set("sortBy", sortState.column!);
+      params.set("sortOrder", sortState.order);
+    }
+
+    // Add column visibility to URL (only if some columns are hidden)
+    const visibleCols = columnConfigs.filter((col) => col.visible);
+    if (visibleCols.length < DEFAULT_COLUMN_CONFIGS.length) {
+      params.set("columns", visibleCols.map((col) => col.id).join(","));
+    }
+
+    // Update URL without triggering a page reload
+    setSearchParams(params, { replace: true });
+  }, [selectedCollaterals, selectedLoans, idFilter, sortState, columnConfigs, setSearchParams]);
+
+  // Reset filter and sort states when chain changes (but not on initial mount)
+  useEffect(() => {
+    const currentChainId = chain?.id;
+
+    // Only reset if chain actually changed (not on initial mount from undefined to a value)
+    if (prevChainIdRef.current !== undefined && prevChainIdRef.current !== currentChainId) {
+      setSelectedCollaterals(new Set());
+      setSelectedLoans(new Set());
+      setIdFilter("");
+      setSortState(null);
+    }
+
+    // Update the ref to track the current chainId
+    prevChainIdRef.current = currentChainId;
   }, [chain?.id]);
 
   // Helper function to handle sort toggle
@@ -694,7 +809,16 @@ export function MarketTable({
     }
 
     // Apply sorting based on current sort state
+    // console.log(
+    //   "🔄 filteredAndSortedMarkets recalculating - sortState:",
+    //   sortState,
+    //   "markets count:",
+    //   markets.length,
+    //   "filtered count:",
+    //   filtered.length,
+    // );
     if (sortState) {
+      // console.log("📊 Applying sort:", sortState.column, sortState.order);
       filtered.sort((a, b) => {
         let valueA: bigint;
         let valueB: bigint;
@@ -737,7 +861,7 @@ export function MarketTable({
     }
 
     return filtered;
-  }, [markets, selectedCollaterals, selectedLoans, idFilter, sortState]);
+  }, [markets, selectedCollaterals, selectedLoans, idFilter, sortState, tokens]);
 
   // Render table header for a column
   const renderColumnHeader = (columnId: ColumnId, index: number, visibleColumns: ColumnConfig[]) => {
