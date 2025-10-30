@@ -32,6 +32,7 @@ export const MANUALLY_WHITELISTED_CURATORS: FragmentOf<typeof CuratorFragment>[]
   {
     addresses: [
       { address: "0x4F08D2A771aCe406C733EC3E722827E857A33Db5", chainId: plumeMainnet.id },
+      { address: "0xf452caAaF039E8E40A10861f84d1191e84693951", chainId: plumeMainnet.id },
       { address: "0xB672Ea44A1EC692A9Baf851dC90a1Ee3DB25F1C4", chainId: celo.id },
     ],
     image: "https://cdn.morpho.org/v2/assets/images/mevcapital.png",
@@ -127,13 +128,14 @@ const ROLE_NAMES = ["owner", "curator", "guardian"] as const;
 export function getDisplayableCurators(
   vault: { [role in (typeof ROLE_NAMES)[number]]: Address } & { address: Address },
   curators: FragmentOf<typeof CuratorFragment>[],
+  chainId: number | undefined,
 ) {
   const result: DisplayableCurators = {};
   for (const roleName of ROLE_NAMES) {
     for (const curator of curators) {
-      const address = curator.addresses
-        ?.map((entry) => entry.address as Address)
-        .find((a) => isAddressEqual(a, vault[roleName]));
+      const address = curator.addresses?.find(
+        (entry) => entry.chainId === chainId && isAddressEqual(entry.address as Address, vault[roleName]),
+      )?.address as Address | undefined;
       if (!address) continue;
 
       const roleNameCapitalized = `${roleName.charAt(0).toUpperCase()}${roleName.slice(1)}`;

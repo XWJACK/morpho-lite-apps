@@ -12,6 +12,7 @@ import {
   useNavigate,
   useParams,
 } from "react-router";
+import { Toaster } from "sonner";
 import { useChains } from "wagmi";
 
 import { Footer } from "@/components/footer";
@@ -75,6 +76,7 @@ export default function Page() {
 
   return (
     <div className="bg-background">
+      <Toaster theme="dark" position="bottom-left" richColors />
       <Header className="flex items-center justify-between px-5 py-3" chainId={chain?.id}>
         <div className="text-primary-foreground flex items-center gap-4">
           {WORDMARK.length > 0 ? (

@@ -4,7 +4,6 @@ import { metaMorphoFactoryAbi } from "@morpho-org/uikit/assets/abis/meta-morpho-
 import { morphoAbi } from "@morpho-org/uikit/assets/abis/morpho";
 import useContractEvents from "@morpho-org/uikit/hooks/use-contract-events/use-contract-events";
 import { readAccrualVaults, readAccrualVaultsStateOverride } from "@morpho-org/uikit/lens/read-vaults";
-import { tac } from "@morpho-org/uikit/lib/chains/tac";
 import { CORE_DEPLOYMENTS, getContractDeploymentInfo } from "@morpho-org/uikit/lib/deployments";
 import { Token } from "@morpho-org/uikit/lib/utils";
 import { useMemo } from "react";
@@ -19,6 +18,7 @@ import * as Merkl from "@/hooks/use-merkl-campaigns";
 import { useMerklOpportunities } from "@/hooks/use-merkl-opportunities";
 import { useTopNCurators } from "@/hooks/use-top-n-curators";
 import { type DisplayableCurators, getDisplayableCurators } from "@/lib/curators";
+import { CREATE_METAMORPHO_EVENT_OVERRIDES, getDeploylessMode } from "@/lib/overrides";
 import { getTokenURI } from "@/lib/tokens";
 
 const STALE_TIME = 5 * 60 * 1000;
@@ -33,6 +33,9 @@ export function BorrowSubPage() {
   const { chain } = useOutletContext() as { chain?: Chain };
   const chainId = chain?.id;
 
+  const shouldOverrideCreateMetaMorphoEvents = chainId !== undefined && chainId in CREATE_METAMORPHO_EVENT_OVERRIDES;
+  const shouldUseDeploylessReads = getDeploylessMode(chainId) === "deployless";
+
   const [morpho, factory, factoryV1_1] = useMemo(
     () => [
       getContractDeploymentInfo(chainId, "Morpho"),
@@ -45,6 +48,7 @@ export function BorrowSubPage() {
   const borrowingRewards = useMerklOpportunities({ chainId, side: Merkl.CampaignSide.BORROW, userAddress });
 
   // MARK: Index `MetaMorphoFactory.CreateMetaMorpho` on all factory versions to get a list of all vault addresses
+  const fromBlock = factory?.fromBlock ?? factoryV1_1?.fromBlock;
   const {
     logs: { all: createMetaMorphoEvents },
     fractionFetched,
@@ -52,12 +56,20 @@ export function BorrowSubPage() {
     chainId,
     abi: metaMorphoFactoryAbi,
     address: factoryV1_1 ? [factoryV1_1.address].concat(factory ? [factory.address] : []) : [],
-    fromBlock: factory?.fromBlock ?? factoryV1_1?.fromBlock,
+    fromBlock,
+    toBlock: "finalized",
     reverseChronologicalOrder: true,
     eventName: "CreateMetaMorpho",
     strict: true,
-    query: { enabled: chainId !== undefined },
+    query: { enabled: chainId !== undefined && !shouldOverrideCreateMetaMorphoEvents && fromBlock !== undefined },
   });
+  const vaultAddresses = useMemo(
+    () =>
+      shouldOverrideCreateMetaMorphoEvents
+        ? CREATE_METAMORPHO_EVENT_OVERRIDES[chainId]
+        : createMetaMorphoEvents.map((ev) => ev.args.metaMorpho),
+    [chainId, shouldOverrideCreateMetaMorphoEvents, createMetaMorphoEvents],
+  );
 
   // MARK: Fetch additional data for whitelisted vaults
   const curators = useTopNCurators({ n: "all", verifiedOnly: true, chainIds: [...CORE_DEPLOYMENTS] });
@@ -65,21 +77,19 @@ export function BorrowSubPage() {
     chainId,
     ...readAccrualVaults(
       morpho?.address ?? "0x",
-      createMetaMorphoEvents.map((ev) => ev.args.metaMorpho),
+      vaultAddresses,
       curators.flatMap(
         (curator) =>
           curator.addresses?.filter((entry) => entry.chainId === chainId).map((entry) => entry.address as Address) ??
           [],
       ),
-      // TODO: For now, we use bytecode deployless reads on TAC, since the RPC doesn't support `stateOverride`.
-      //       This means we're forfeiting multicall in this special case, but at least it works. Once we have
-      //       a TAC RPC that supports `stateOverride`, remove the special case.
       // @ts-expect-error function signature overloading was meant for hard-coded `true` or `false`
-      chainId === tac.id,
+      shouldUseDeploylessReads,
     ),
-    stateOverride: chainId === tac.id ? undefined : [readAccrualVaultsStateOverride()],
+    stateOverride: shouldUseDeploylessReads ? undefined : [readAccrualVaultsStateOverride()],
     query: {
-      enabled: chainId !== undefined && fractionFetched > 0.99 && !!morpho?.address,
+      enabled:
+        chainId !== undefined && (fractionFetched > 0.99 || shouldOverrideCreateMetaMorphoEvents) && !!morpho?.address,
       staleTime: STALE_TIME,
       gcTime: Infinity,
       notifyOnChangeProps: ["data"],
@@ -128,13 +138,13 @@ export function BorrowSubPage() {
           name: vaultData.vault.name,
           address: vaultData.vault.vault,
           totalAssets: vaultData.vault.totalAssets,
-          curators: getDisplayableCurators({ ...vaultData.vault, address: vaultData.vault.vault }, curators),
+          curators: getDisplayableCurators({ ...vaultData.vault, address: vaultData.vault.vault }, curators, chainId),
         });
       });
     });
 
     return map;
-  }, [vaultsData, curators]);
+  }, [vaultsData, curators, chainId]);
 
   const { data: erc20Symbols } = useReadContracts({
     contracts: marketsArr
