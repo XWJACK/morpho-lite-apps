@@ -233,38 +233,64 @@ function IdTableCell({ marketId }: { marketId: MarketId }) {
   const [recentlyCopiedText, setRecentlyCopiedText] = useState("");
 
   return (
-    <TooltipProvider>
-      <Tooltip delayDuration={1000}>
-        <TooltipTrigger asChild>
-          <button
-            className="hover:bg-secondary ml-[-8px] flex w-min cursor-pointer items-center gap-2 rounded-sm p-2"
-            onClick={(event) => {
-              event.stopPropagation();
-              void navigator.clipboard.writeText(marketId);
+    <div className="ml-[-8px] flex items-center gap-1">
+      <TooltipProvider>
+        <Tooltip delayDuration={1000}>
+          <TooltipTrigger asChild>
+            <button
+              className="hover:bg-secondary flex w-min cursor-pointer items-center gap-2 rounded-sm p-2"
+              onClick={(event) => {
+                event.stopPropagation();
+                void navigator.clipboard.writeText(marketId);
 
-              setRecentlyCopiedText(marketId);
-              setTimeout(() => setRecentlyCopiedText(""), 500);
-            }}
+                setRecentlyCopiedText(marketId);
+                setTimeout(() => setRecentlyCopiedText(""), 500);
+              }}
+            >
+              {marketId === recentlyCopiedText ? (
+                <CheckCheck className="size-4 text-green-400" />
+              ) : (
+                <Copy className="size-4" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent
+            className="text-primary-foreground rounded-3xl p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
           >
-            {marketId === recentlyCopiedText ? (
-              <CheckCheck className="size-4 text-green-400" />
-            ) : (
-              <Copy className="size-4" />
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent
-          className="text-primary-foreground rounded-3xl p-4 shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="wrap-anywhere flex max-w-[200px] items-center gap-1">
-            <p>
-              Market ID: <code>{marketId}</code>
-            </p>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+            <div className="wrap-anywhere flex max-w-[200px] items-center gap-1">
+              <p>
+                Market ID: <code>{marketId}</code>
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <TooltipProvider>
+        <Tooltip delayDuration={1000}>
+          <TooltipTrigger asChild>
+            <a
+              href={`https://app.morpho.org/ethereum/market/${marketId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:bg-secondary flex w-min cursor-pointer items-center gap-2 rounded-sm p-2"
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+            >
+              <ExternalLink className="size-4" />
+            </a>
+          </TooltipTrigger>
+          <TooltipContent
+            className="text-primary-foreground rounded-3xl p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p>Open in Morpho App</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
   );
 }
 
