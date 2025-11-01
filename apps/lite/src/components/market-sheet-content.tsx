@@ -4,6 +4,7 @@ import {
   Market,
   MarketId,
   MarketParams,
+  MarketUtils,
   Position,
 } from "@morpho-org/blue-sdk";
 import { morphoAbi } from "@morpho-org/uikit/assets/abis/morpho";
@@ -18,6 +19,7 @@ import {
   SheetFooter,
   SheetClose,
 } from "@morpho-org/uikit/components/shadcn/sheet";
+import { Slider } from "@morpho-org/uikit/components/shadcn/slider";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@morpho-org/uikit/components/shadcn/tabs";
 import { TokenAmountInput } from "@morpho-org/uikit/components/token-amount-input";
 import { TransactionButton } from "@morpho-org/uikit/components/transaction-button";
@@ -26,6 +28,7 @@ import {
   // tryFormatBalance, formatLtv,
   Token,
   formatApy,
+  formatBalance,
 } from "@morpho-org/uikit/lib/utils";
 import { keepPreviousData } from "@tanstack/react-query";
 import {
@@ -122,6 +125,7 @@ export function MarketSheetContent({
   const [selectedTab, setSelectedTab] = useState(Actions.Supply);
   const [textInputValue, setTextInputValue] = useState("");
   const [approveUnlimited, setApproveUnlimited] = useState(true);
+  const [withdrawShares, setWithdrawShares] = useState<bigint>(0n);
 
   const morpho = getContractDeploymentInfo(chainId, "Morpho").address;
 
@@ -175,6 +179,7 @@ export function MarketSheetContent({
 
   const onTxnReceipt = useCallback(() => {
     setTextInputValue("");
+    setWithdrawShares(0n);
     void refetchBalances();
     void refetchPosition();
   }, [refetchBalances, refetchPosition]);
@@ -213,6 +218,45 @@ export function MarketSheetContent({
       inputValue: token?.decimals !== undefined ? parseUnits(textInputValue, token.decimals) : undefined,
     };
   }, [textInputValue, tokens, marketParams]);
+
+  // Handle slider change - convert shares to assets
+  const handleSliderChange = useCallback(
+    (value: number[]) => {
+      const shares = BigInt(value[0]);
+      setWithdrawShares(shares);
+
+      if (market && shares > 0n) {
+        // Convert shares to assets using MarketUtils
+        const assets = MarketUtils.toSupplyAssets(shares, market);
+        const decimals = token?.decimals ?? 18;
+        setTextInputValue(formatBalance(assets, decimals));
+      } else {
+        setTextInputValue("");
+      }
+    },
+    [market, token?.decimals],
+  );
+
+  // Handle input change - convert assets to shares
+  const handleInputChange = useCallback(
+    (value: string) => {
+      setTextInputValue(value);
+
+      if (market && value && token?.decimals !== undefined) {
+        try {
+          const assets = parseUnits(value, token.decimals);
+          // Convert assets to shares using MarketUtils
+          const shares = MarketUtils.toSupplyShares(assets, market);
+          setWithdrawShares(shares);
+        } catch {
+          // Invalid input, keep shares as is
+        }
+      } else {
+        setWithdrawShares(0n);
+      }
+    },
+    [market, token?.decimals],
+  );
 
   let withdrawCollateralMax = 0n;
   if (position !== undefined && market !== undefined && market.totalSupplyShares > 0n) {
@@ -294,14 +338,7 @@ export function MarketSheetContent({
           address: morpho,
           abi: morphoAbi,
           functionName: "withdraw",
-          args: [
-            { ...marketParams },
-            0n,
-            // MarketUtils.toSupplyShares(inputValue, market),
-            position?.supplyShares ?? 0n,
-            userAddress,
-            userAddress,
-          ],
+          args: [{ ...marketParams }, 0n, withdrawShares, userAddress, userAddress],
           dataSuffix: TRANSACTION_DATA_SUFFIX,
         } as const)
       : undefined;
@@ -384,6 +421,7 @@ export function MarketSheetContent({
         onValueChange={(value) => {
           setSelectedTab(value as Actions);
           setTextInputValue("");
+          setWithdrawShares(0n);
         }}
       >
         <TabsList className="grid w-full grid-cols-2 gap-1 bg-transparent p-0">
@@ -464,8 +502,27 @@ export function MarketSheetContent({
               decimals={token?.decimals}
               value={textInputValue}
               maxValue={withdrawCollateralMax}
-              onChange={setTextInputValue}
+              onChange={handleInputChange}
             />
+            {/* Shares Slider */}
+            {position && position.supplyShares > 0n && (
+              <div className="border-secondary flex flex-col gap-3 border-t pt-3">
+                <div className="text-secondary-foreground flex items-center justify-between text-xs">
+                  <span>Withdraw Shares</span>
+                  <span>
+                    {withdrawShares.toString()} / {position.supplyShares.toString()}
+                  </span>
+                </div>
+                <Slider
+                  value={[Number(withdrawShares)]}
+                  max={Number(position.supplyShares)}
+                  min={0}
+                  step={1}
+                  onValueChange={handleSliderChange}
+                  className="w-full"
+                />
+              </div>
+            )}
             <ApyChangeDisplay inputValue={inputValue} currentApy={currentApy} newApy={newApy} />
           </div>
           <TransactionButton variables={withdrawTxnConfig} disabled={!inputValue} onTxnReceipt={onTxnReceipt}>
