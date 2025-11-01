@@ -487,6 +487,269 @@ function IdFilterPopover({
   );
 }
 
+// APY Filter Popover Component
+function ApyFilterPopover({
+  label,
+  filterValue,
+  onFilterChange,
+}: {
+  label: string;
+  filterValue: string;
+  onFilterChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(filterValue);
+
+  useEffect(() => {
+    setInputValue(filterValue);
+  }, [filterValue]);
+
+  const handleApply = () => {
+    // Validate input is a number
+    const num = parseFloat(inputValue);
+    if (!isNaN(num) && num >= 0) {
+      onFilterChange(inputValue);
+    } else if (inputValue === "") {
+      onFilterChange("");
+    }
+    setIsOpen(false);
+  };
+
+  const handleClear = () => {
+    setInputValue("");
+    onFilterChange("");
+    setIsOpen(false);
+  };
+
+  const handlePresetClick = (value: string) => {
+    setInputValue(value);
+    onFilterChange(value);
+    setIsOpen(false);
+  };
+
+  const presetValues = ["3", "5", "10", "15", "20"];
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="secondaryTab"
+          size="sm"
+          className="hover:bg-secondary flex h-8 items-center gap-1 rounded-full px-3 text-xs font-light"
+        >
+          {label}
+          {filterValue && (
+            <span className="ml-1.5 flex h-5 items-center justify-center rounded-full bg-blue-500 px-1.5 text-[10px] font-medium text-white">
+              ≥{filterValue}%
+            </span>
+          )}
+          <ChevronDown className="size-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="start">
+        <div className="flex flex-col">
+          {/* Header */}
+          <div className="border-b p-3">
+            <span className="text-sm font-medium">Minimum APY</span>
+          </div>
+
+          {/* Preset Buttons */}
+          <div className="flex flex-wrap gap-2 p-3">
+            {presetValues.map((value) => (
+              <Button
+                key={value}
+                variant={filterValue === value ? "default" : "outline"}
+                size="sm"
+                onClick={() => handlePresetClick(value)}
+                className="flex-1 text-xs"
+              >
+                ≥ {value}%
+              </Button>
+            ))}
+          </div>
+
+          {/* Custom Input */}
+          <div className="border-t p-3">
+            <div className="text-secondary-foreground mb-2 text-xs">Custom value:</div>
+            <div className="relative">
+              <Input
+                type="number"
+                placeholder="e.g., 7.5"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleApply();
+                  }
+                }}
+                className="text-xs"
+                min="0"
+                step="0.1"
+              />
+              <span className="text-secondary-foreground pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs">
+                %
+              </span>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-2 border-t p-2">
+            <Button variant="ghost" size="sm" onClick={handleClear} className="flex-1 text-xs">
+              Clear
+            </Button>
+            <Button variant="default" size="sm" onClick={handleApply} className="flex-1 text-xs">
+              Apply
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// Amount Filter Popover Component (for Total Supply and Liquidity)
+function AmountFilterPopover({
+  label,
+  filterValue,
+  onFilterChange,
+}: {
+  label: string;
+  filterValue: string;
+  onFilterChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(filterValue);
+
+  useEffect(() => {
+    setInputValue(filterValue);
+  }, [filterValue]);
+
+  // Parse value with K, M, B suffixes
+  const parseAmount = (value: string): number | null => {
+    const trimmed = value.trim().toUpperCase();
+    if (!trimmed) return null;
+
+    const match = trimmed.match(/^([\d.]+)([KMB]?)$/);
+    if (!match) return null;
+
+    const num = parseFloat(match[1]);
+    if (isNaN(num) || num < 0) return null;
+
+    const suffix = match[2];
+    const multipliers: Record<string, number> = { K: 1_000, M: 1_000_000, B: 1_000_000_000, "": 1 };
+    return num * (multipliers[suffix] || 1);
+  };
+
+  const handleApply = () => {
+    if (inputValue === "") {
+      onFilterChange("");
+      setIsOpen(false);
+      return;
+    }
+
+    const parsed = parseAmount(inputValue);
+    if (parsed !== null) {
+      onFilterChange(inputValue);
+    }
+    setIsOpen(false);
+  };
+
+  const handleClear = () => {
+    setInputValue("");
+    onFilterChange("");
+    setIsOpen(false);
+  };
+
+  const handlePresetClick = (value: string) => {
+    setInputValue(value);
+    onFilterChange(value);
+    setIsOpen(false);
+  };
+
+  const presetValues = ["100K", "500K", "1M", "5M", "10M"];
+
+  // Format display value
+  const formatDisplayValue = (value: string) => {
+    if (!value) return "";
+    const parsed = parseAmount(value);
+    if (parsed === null) return value;
+
+    if (parsed >= 1_000_000_000) return `≥${(parsed / 1_000_000_000).toFixed(1)}B`;
+    if (parsed >= 1_000_000) return `≥${(parsed / 1_000_000).toFixed(1)}M`;
+    if (parsed >= 1_000) return `≥${(parsed / 1_000).toFixed(1)}K`;
+    return `≥${parsed}`;
+  };
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="secondaryTab"
+          size="sm"
+          className="hover:bg-secondary flex h-8 items-center gap-1 rounded-full px-3 text-xs font-light"
+        >
+          {label}
+          {filterValue && (
+            <span className="ml-1.5 flex h-5 items-center justify-center rounded-full bg-blue-500 px-1.5 text-[10px] font-medium text-white">
+              {formatDisplayValue(filterValue)}
+            </span>
+          )}
+          <ChevronDown className="size-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="start">
+        <div className="flex flex-col">
+          {/* Header */}
+          <div className="border-b p-3">
+            <span className="text-sm font-medium">Minimum Amount</span>
+          </div>
+
+          {/* Preset Buttons */}
+          <div className="flex flex-wrap gap-2 p-3">
+            {presetValues.map((value) => (
+              <Button
+                key={value}
+                variant={filterValue === value ? "default" : "outline"}
+                size="sm"
+                onClick={() => handlePresetClick(value)}
+                className="flex-1 text-xs"
+              >
+                ≥ {value}
+              </Button>
+            ))}
+          </div>
+
+          {/* Custom Input */}
+          <div className="border-t p-3">
+            <div className="text-secondary-foreground mb-2 text-xs">Custom value (supports K, M, B suffixes):</div>
+            <Input
+              placeholder="e.g., 2.5M or 500K"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleApply();
+                }
+              }}
+              className="text-xs"
+            />
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-2 border-t p-2">
+            <Button variant="ghost" size="sm" onClick={handleClear} className="flex-1 text-xs">
+              Clear
+            </Button>
+            <Button variant="default" size="sm" onClick={handleApply} className="flex-1 text-xs">
+              Apply
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // Column Configuration Types
 type ColumnId =
   | "collateral"
@@ -662,6 +925,9 @@ export function MarketTable({
   const [selectedCollaterals, setSelectedCollaterals] = useState<Set<Address>>(new Set());
   const [selectedLoans, setSelectedLoans] = useState<Set<Address>>(new Set());
   const [idFilter, setIdFilter] = useState<string>("");
+  const [minApyFilter, setMinApyFilter] = useState<string>("");
+  const [minTotalSupplyFilter, setMinTotalSupplyFilter] = useState<string>("");
+  const [minLiquidityFilter, setMinLiquidityFilter] = useState<string>("");
   const [sortState, setSortState] = useState<SortState | null>(null);
 
   // Sync state FROM URL params when searchParams change
@@ -689,6 +955,18 @@ export function MarketTable({
     // Parse ID filter
     const idParam = searchParams.get("id");
     setIdFilter(idParam || "");
+
+    // Parse min APY filter
+    const minApyParam = searchParams.get("minApy");
+    setMinApyFilter(minApyParam || "");
+
+    // Parse min Total Supply filter
+    const minTotalSupplyParam = searchParams.get("minTotalSupply");
+    setMinTotalSupplyFilter(minTotalSupplyParam || "");
+
+    // Parse min Liquidity filter
+    const minLiquidityParam = searchParams.get("minLiquidity");
+    setMinLiquidityFilter(minLiquidityParam || "");
 
     // Parse sort state
     const sortColumn = searchParams.get("sortBy") as SortColumn | null;
@@ -746,6 +1024,21 @@ export function MarketTable({
       params.set("id", idFilter.trim());
     }
 
+    // Add min APY filter to URL
+    if (minApyFilter.trim()) {
+      params.set("minApy", minApyFilter.trim());
+    }
+
+    // Add min Total Supply filter to URL
+    if (minTotalSupplyFilter.trim()) {
+      params.set("minTotalSupply", minTotalSupplyFilter.trim());
+    }
+
+    // Add min Liquidity filter to URL
+    if (minLiquidityFilter.trim()) {
+      params.set("minLiquidity", minLiquidityFilter.trim());
+    }
+
     // Add sort state to URL
     if (sortState) {
       params.set("sortBy", sortState.column!);
@@ -760,7 +1053,17 @@ export function MarketTable({
 
     // Update URL without triggering a page reload
     setSearchParams(params, { replace: true });
-  }, [selectedCollaterals, selectedLoans, idFilter, sortState, columnConfigs, setSearchParams]);
+  }, [
+    selectedCollaterals,
+    selectedLoans,
+    idFilter,
+    minApyFilter,
+    minTotalSupplyFilter,
+    minLiquidityFilter,
+    sortState,
+    columnConfigs,
+    setSearchParams,
+  ]);
 
   // Reset filter and sort states when chain changes (but not on initial mount)
   useEffect(() => {
@@ -771,6 +1074,9 @@ export function MarketTable({
       setSelectedCollaterals(new Set());
       setSelectedLoans(new Set());
       setIdFilter("");
+      setMinApyFilter("");
+      setMinTotalSupplyFilter("");
+      setMinLiquidityFilter("");
       setSortState(null);
     }
 
@@ -816,6 +1122,22 @@ export function MarketTable({
 
   // Apply filters and sorting
   const filteredAndSortedMarkets = useMemo(() => {
+    // Helper to parse amount strings with K, M, B suffixes
+    const parseAmount = (value: string): number | null => {
+      const trimmed = value.trim().toUpperCase();
+      if (!trimmed) return null;
+
+      const match = trimmed.match(/^([\d.]+)([KMB]?)$/);
+      if (!match) return null;
+
+      const num = parseFloat(match[1]);
+      if (isNaN(num) || num < 0) return null;
+
+      const suffix = match[2];
+      const multipliers: Record<string, number> = { K: 1_000, M: 1_000_000, B: 1_000_000_000, "": 1 };
+      return num * (multipliers[suffix] || 1);
+    };
+
     let filtered = [...markets];
 
     // Apply collateral filter
@@ -832,6 +1154,43 @@ export function MarketTable({
     if (idFilter.trim() !== "") {
       const filterLower = idFilter.toLowerCase().trim();
       filtered = filtered.filter((market) => market.id.toLowerCase().includes(filterLower));
+    }
+
+    // Apply min APY filter
+    if (minApyFilter.trim() !== "") {
+      const minApyValue = parseFloat(minApyFilter);
+      if (!isNaN(minApyValue)) {
+        // Convert percentage to bigint (APY is stored as bigint with 10^16 precision)
+        // e.g., 5% = 5 * 10^16 = 50000000000000000n
+        const minApyBigInt = BigInt(Math.floor(minApyValue * 1e16));
+        filtered = filtered.filter((market) => market.getSupplyApy() >= minApyBigInt);
+      }
+    }
+
+    // Apply min Total Supply filter
+    if (minTotalSupplyFilter.trim() !== "") {
+      const minAmount = parseAmount(minTotalSupplyFilter);
+      if (minAmount !== null) {
+        filtered = filtered.filter((market) => {
+          const loanToken = tokens.get(market.params.loanToken);
+          if (!loanToken?.decimals) return false;
+          const marketAmount = parseFloat(formatUnits(market.totalSupplyAssets, loanToken.decimals));
+          return marketAmount >= minAmount;
+        });
+      }
+    }
+
+    // Apply min Liquidity filter
+    if (minLiquidityFilter.trim() !== "") {
+      const minAmount = parseAmount(minLiquidityFilter);
+      if (minAmount !== null) {
+        filtered = filtered.filter((market) => {
+          const loanToken = tokens.get(market.params.loanToken);
+          if (!loanToken?.decimals) return false;
+          const marketAmount = parseFloat(formatUnits(market.liquidity, loanToken.decimals));
+          return marketAmount >= minAmount;
+        });
+      }
     }
 
     // Apply sorting based on current sort state
@@ -887,7 +1246,17 @@ export function MarketTable({
     }
 
     return filtered;
-  }, [markets, selectedCollaterals, selectedLoans, idFilter, sortState, tokens]);
+  }, [
+    markets,
+    selectedCollaterals,
+    selectedLoans,
+    idFilter,
+    minApyFilter,
+    minTotalSupplyFilter,
+    minLiquidityFilter,
+    sortState,
+    tokens,
+  ]);
 
   // Render table header for a column
   const renderColumnHeader = (columnId: ColumnId, index: number, visibleColumns: ColumnConfig[]) => {
@@ -921,26 +1290,36 @@ export function MarketTable({
       case "totalSupply":
         return (
           <TableHead key={columnId} className={baseClass}>
-            <button
-              onClick={() => handleSort("totalSupply")}
-              className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
-            >
-              <span>{visibleColumns[index].label}</span>
-              {sortState?.column !== "totalSupply" && <ArrowUpDown className="size-3 opacity-50" />}
-              {sortState?.column === "totalSupply" && sortState.order === "asc" && <ArrowUp className="size-3" />}
-              {sortState?.column === "totalSupply" && sortState.order === "desc" && <ArrowDown className="size-3" />}
-            </button>
+            <div className="flex items-center gap-1">
+              <AmountFilterPopover
+                label={visibleColumns[index].label}
+                filterValue={minTotalSupplyFilter}
+                onFilterChange={setMinTotalSupplyFilter}
+              />
+              <button
+                onClick={() => handleSort("totalSupply")}
+                className="hover:bg-secondary flex items-center gap-1 rounded p-1 transition-colors"
+              >
+                {sortState?.column !== "totalSupply" && <ArrowUpDown className="size-3 opacity-50" />}
+                {sortState?.column === "totalSupply" && sortState.order === "asc" && <ArrowUp className="size-3" />}
+                {sortState?.column === "totalSupply" && sortState.order === "desc" && <ArrowDown className="size-3" />}
+              </button>
+            </div>
           </TableHead>
         );
       case "liquidity":
         return (
           <TableHead key={columnId} className={baseClass}>
             <div className="flex items-center gap-1">
+              <AmountFilterPopover
+                label={visibleColumns[index].label}
+                filterValue={minLiquidityFilter}
+                onFilterChange={setMinLiquidityFilter}
+              />
               <button
                 onClick={() => handleSort("liquidity")}
-                className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
+                className="hover:bg-secondary flex items-center gap-1 rounded p-1 transition-colors"
               >
-                <span>{visibleColumns[index].label}</span>
                 {sortState?.column !== "liquidity" && <ArrowUpDown className="size-3 opacity-50" />}
                 {sortState?.column === "liquidity" && sortState.order === "asc" && <ArrowUp className="size-3" />}
                 {sortState?.column === "liquidity" && sortState.order === "desc" && <ArrowDown className="size-3" />}
@@ -970,15 +1349,21 @@ export function MarketTable({
       case "rate":
         return (
           <TableHead key={columnId} className={baseClass}>
-            <button
-              onClick={() => handleSort("rate")}
-              className="hover:bg-secondary flex items-center gap-1 rounded px-2 py-1 transition-colors"
-            >
-              <span>{visibleColumns[index].label}</span>
-              {sortState?.column !== "rate" && <ArrowUpDown className="size-3 opacity-50" />}
-              {sortState?.column === "rate" && sortState.order === "asc" && <ArrowUp className="size-3" />}
-              {sortState?.column === "rate" && sortState.order === "desc" && <ArrowDown className="size-3" />}
-            </button>
+            <div className="flex items-center gap-1">
+              <ApyFilterPopover
+                label={visibleColumns[index].label}
+                filterValue={minApyFilter}
+                onFilterChange={setMinApyFilter}
+              />
+              <button
+                onClick={() => handleSort("rate")}
+                className="hover:bg-secondary flex items-center gap-1 rounded p-1 transition-colors"
+              >
+                {sortState?.column !== "rate" && <ArrowUpDown className="size-3 opacity-50" />}
+                {sortState?.column === "rate" && sortState.order === "asc" && <ArrowUp className="size-3" />}
+                {sortState?.column === "rate" && sortState.order === "desc" && <ArrowDown className="size-3" />}
+              </button>
+            </div>
           </TableHead>
         );
       case "utilization":
