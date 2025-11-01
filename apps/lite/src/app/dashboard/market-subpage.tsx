@@ -128,7 +128,7 @@ export function MarketSubPage() {
           name: vaultData.vault.name,
           address: vaultData.vault.vault,
           totalAssets: vaultData.vault.totalAssets,
-          curators: getDisplayableCurators({ ...vaultData.vault, address: vaultData.vault.vault }, curators),
+          curators: getDisplayableCurators({ ...vaultData.vault, address: vaultData.vault.vault }, curators, chainId),
         });
       });
     });
