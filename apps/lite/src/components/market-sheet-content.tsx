@@ -219,6 +219,14 @@ export function MarketSheetContent({
     };
   }, [textInputValue, tokens, marketParams]);
 
+  // Calculate max withdrawable assets
+  const withdrawCollateralMax = useMemo(() => {
+    if (position !== undefined && market !== undefined && market.totalSupplyShares > 0n) {
+      return (position.supplyShares * (market.totalSupplyAssets + 1n)) / (market.totalSupplyShares + 1000000n);
+    }
+    return 0n;
+  }, [position, market]);
+
   // Handle slider change - convert shares to assets
   const handleSliderChange = useCallback(
     (value: number[]) => {
@@ -242,12 +250,25 @@ export function MarketSheetContent({
     (value: string) => {
       setTextInputValue(value);
 
-      if (market && value && token?.decimals !== undefined) {
+      if (market && value && token?.decimals !== undefined && position) {
         try {
           const assets = parseUnits(value, token.decimals);
-          // Convert assets to shares using MarketUtils
-          const shares = MarketUtils.toSupplyShares(assets, market);
-          setWithdrawShares(shares);
+
+          // If user is trying to withdraw max or more, use all shares directly
+          // This avoids precision issues with MarketUtils.toSupplyShares
+          if (assets >= withdrawCollateralMax) {
+            setWithdrawShares(position.supplyShares);
+          } else {
+            // Convert assets to shares using MarketUtils
+            let shares = MarketUtils.toSupplyShares(assets, market);
+
+            // Ensure shares don't exceed user's position
+            if (shares > position.supplyShares) {
+              shares = position.supplyShares;
+            }
+
+            setWithdrawShares(shares);
+          }
         } catch {
           // Invalid input, keep shares as is
         }
@@ -255,14 +276,8 @@ export function MarketSheetContent({
         setWithdrawShares(0n);
       }
     },
-    [market, token?.decimals],
+    [market, token?.decimals, position, withdrawCollateralMax],
   );
-
-  let withdrawCollateralMax = 0n;
-  if (position !== undefined && market !== undefined && market.totalSupplyShares > 0n) {
-    withdrawCollateralMax =
-      (position.supplyShares * (market.totalSupplyAssets + 1n)) / (market.totalSupplyShares + 1000000n);
-  }
 
   // Calculate new APY after supply or withdraw
   const { currentApy, newApy } = useMemo(() => {
@@ -332,13 +347,19 @@ export function MarketSheetContent({
         } as const)
       : undefined;
 
+  // Ensure withdrawShares doesn't exceed position's shares
+  const safeWithdrawShares = useMemo(() => {
+    if (!position || withdrawShares === 0n) return 0n;
+    return withdrawShares > position.supplyShares ? position.supplyShares : withdrawShares;
+  }, [withdrawShares, position]);
+
   const withdrawTxnConfig =
-    inputValue !== undefined && userAddress !== undefined && market != undefined
+    inputValue !== undefined && userAddress !== undefined && market != undefined && safeWithdrawShares > 0n
       ? ({
           address: morpho,
           abi: morphoAbi,
           functionName: "withdraw",
-          args: [{ ...marketParams }, 0n, withdrawShares, userAddress, userAddress],
+          args: [{ ...marketParams }, 0n, safeWithdrawShares, userAddress, userAddress],
           dataSuffix: TRANSACTION_DATA_SUFFIX,
         } as const)
       : undefined;
@@ -510,11 +531,11 @@ export function MarketSheetContent({
                 <div className="text-secondary-foreground flex items-center justify-between text-xs">
                   <span>Withdraw Shares</span>
                   <span>
-                    {withdrawShares.toString()} / {position.supplyShares.toString()}
+                    {safeWithdrawShares.toString()} / {position.supplyShares.toString()}
                   </span>
                 </div>
                 <Slider
-                  value={[Number(withdrawShares)]}
+                  value={[Number(safeWithdrawShares)]}
                   max={Number(position.supplyShares)}
                   min={0}
                   step={1}
