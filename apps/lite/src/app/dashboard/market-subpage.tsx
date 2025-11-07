@@ -18,6 +18,7 @@ import { useMarkets } from "@/hooks/use-markets";
 import * as Merkl from "@/hooks/use-merkl-campaigns";
 import { useMerklOpportunities } from "@/hooks/use-merkl-opportunities";
 import { useTopNCurators } from "@/hooks/use-top-n-curators";
+import { BLOCKED_MARKET_IDS } from "@/lib/blocked-markets";
 import { type DisplayableCurators, getDisplayableCurators } from "@/lib/curators";
 import { getTokenURI } from "@/lib/tokens";
 
@@ -99,6 +100,7 @@ export function MarketSubPage() {
   const marketsArr = useMemo(() => {
     const marketsArr = Object.values(markets).filter(
       (market) =>
+        !BLOCKED_MARKET_IDS.has(market.id) &&
         market.totalSupplyAssets > 0n &&
         ![market.params.collateralToken, market.params.loanToken, market.params.irm, market.params.oracle].includes(
           zeroAddress,
@@ -134,7 +136,7 @@ export function MarketSubPage() {
     });
 
     return map;
-  }, [vaultsData, curators]);
+  }, [vaultsData, curators, chainId]);
 
   const { data: erc20Symbols } = useReadContracts({
     contracts: marketsArr
