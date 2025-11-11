@@ -105,7 +105,7 @@ export function BorrowSubPage() {
     ],
     [vaultsData],
   );
-  const markets = useMarkets({ chainId, marketIds, staleTime: STALE_TIME, fetchPrices: true });
+  const { markets } = useMarkets({ chainId, marketIds, staleTime: STALE_TIME, fetchPrices: true });
   const marketsArr = useMemo(() => {
     const marketsArr = Object.values(markets).filter(
       (market) =>

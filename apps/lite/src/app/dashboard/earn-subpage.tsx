@@ -115,7 +115,7 @@ export function EarnSubPage() {
   }, [vaultsData]);
 
   const marketIds = useMemo(() => [...new Set(vaultsData?.flatMap((d) => d.vault.withdrawQueue) ?? [])], [vaultsData]);
-  const markets = useMarkets({ chainId, marketIds, staleTime: STALE_TIME });
+  const { markets } = useMarkets({ chainId, marketIds, staleTime: STALE_TIME });
   const vaults = useMemo(() => {
     const vaults: AccrualVault[] = [];
     vaultsData?.forEach((vaultData) => {

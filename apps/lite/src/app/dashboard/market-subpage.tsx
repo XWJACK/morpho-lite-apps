@@ -2,12 +2,14 @@ import { AccrualPosition } from "@morpho-org/blue-sdk";
 import { restructure } from "@morpho-org/blue-sdk-viem";
 import { metaMorphoFactoryAbi } from "@morpho-org/uikit/assets/abis/meta-morpho-factory";
 import { morphoAbi } from "@morpho-org/uikit/assets/abis/morpho";
+import { Button } from "@morpho-org/uikit/components/shadcn/button";
 import useContractEvents from "@morpho-org/uikit/hooks/use-contract-events/use-contract-events";
 import { readAccrualVaults, readAccrualVaultsStateOverride } from "@morpho-org/uikit/lens/read-vaults";
 import { tac } from "@morpho-org/uikit/lib/chains/tac";
 import { CORE_DEPLOYMENTS, getContractDeploymentInfo } from "@morpho-org/uikit/lib/deployments";
 import { Token } from "@morpho-org/uikit/lib/utils";
-import { useMemo } from "react";
+import { RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router";
 import { type Address, erc20Abi, type Chain, zeroAddress, type Hex } from "viem";
 import { useAccount, useReadContract, useReadContracts } from "wagmi";
@@ -96,7 +98,13 @@ export function MarketSubPage() {
     ],
     [vaultsData],
   );
-  const markets = useMarkets({ chainId, marketIds, staleTime: STALE_TIME, fetchPrices: true });
+  const { markets, refetch: refetchMarkets } = useMarkets({
+    chainId,
+    marketIds,
+    staleTime: STALE_TIME,
+    fetchPrices: true,
+  });
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const marketsArr = useMemo(() => {
     const marketsArr = Object.values(markets).filter(
       (market) =>
@@ -256,6 +264,25 @@ export function MarketSubPage() {
       <div className="flex grow flex-col bg-white/[0.03]">
         <div className="bg-linear-to-b from-background to-primary flex h-full grow justify-center rounded-t-xl pb-16 pt-8">
           <div className="text-primary-foreground w-full px-2 lg:px-8" style={{ maxWidth: "2200px" }}>
+            <div className="mb-4 flex justify-end">
+              <Button
+                variant="secondaryTab"
+                size="sm"
+                onClick={async () => {
+                  setIsRefreshing(true);
+                  try {
+                    await refetchMarkets();
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                }}
+                disabled={isRefreshing}
+                className="hover:bg-secondary flex h-8 items-center gap-2 rounded-full px-3 text-xs font-light"
+              >
+                <RefreshCw className={`size-3 ${isRefreshing ? "animate-spin" : ""}`} />
+                Refresh Markets
+              </Button>
+            </div>
             <MarketTable
               chain={chain}
               markets={marketsArr}

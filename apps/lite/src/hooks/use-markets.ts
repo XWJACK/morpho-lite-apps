@@ -54,7 +54,7 @@ export function useMarkets({
     },
   });
 
-  const { data: marketsData } = useReadContracts({
+  const { data: marketsData, refetch: refetchMarkets } = useReadContracts({
     contracts: marketIds.map(
       (marketId) =>
         ({
@@ -75,7 +75,7 @@ export function useMarkets({
     },
   });
 
-  const { data: rateAtTargets } = useReadContracts({
+  const { data: rateAtTargets, refetch: refetchRateAtTargets } = useReadContracts({
     contracts: marketIds.map(
       (marketId, idx) =>
         ({
@@ -95,7 +95,7 @@ export function useMarkets({
     },
   });
 
-  const { data: prices } = useReadContracts({
+  const { data: prices, refetch: refetchPrices } = useReadContracts({
     contracts: marketParamsData?.map(
       (params) => ({ chainId, address: params.oracle, abi: oracleAbi, functionName: "price" }) as const,
     ),
@@ -129,5 +129,9 @@ export function useMarkets({
     return markets;
   }, [marketIds, marketParamsData, marketsData, rateAtTargets, prices]);
 
-  return markets;
+  const refetch = async () => {
+    await Promise.all([refetchMarkets(), refetchRateAtTargets(), fetchPrices ? refetchPrices() : Promise.resolve()]);
+  };
+
+  return { markets, refetch };
 }
