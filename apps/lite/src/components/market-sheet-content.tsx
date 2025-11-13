@@ -10,6 +10,7 @@ import {
 import { morphoAbi } from "@morpho-org/uikit/assets/abis/morpho";
 import { oracleAbi } from "@morpho-org/uikit/assets/abis/oracle";
 // import { AnimateIn } from "@morpho-org/uikit/components/animate-in";
+import { Avatar, AvatarFallback, AvatarImage } from "@morpho-org/uikit/components/shadcn/avatar";
 import { Button } from "@morpho-org/uikit/components/shadcn/button";
 import {
   SheetContent,
@@ -29,8 +30,10 @@ import {
   Token,
   formatApy,
   formatBalance,
+  formatBalanceWithSymbol,
 } from "@morpho-org/uikit/lib/utils";
 import { keepPreviousData } from "@tanstack/react-query";
+import { blo } from "blo";
 import {
   // ArrowRight,
   CircleArrowLeft,
@@ -40,7 +43,7 @@ import { Toaster } from "sonner";
 import { Address, erc20Abi, maxUint256, parseUnits } from "viem";
 import { useAccount, useChainId, useReadContract, useReadContracts } from "wagmi";
 
-import { RISKS_DOCUMENTATION, TRANSACTION_DATA_SUFFIX } from "@/lib/constants";
+import { TRANSACTION_DATA_SUFFIX } from "@/lib/constants";
 
 enum Actions {
   Supply = "Supply",
@@ -218,6 +221,10 @@ export function MarketSheetContent({
       inputValue: token?.decimals !== undefined ? parseUnits(textInputValue, token.decimals) : undefined,
     };
   }, [textInputValue, tokens, marketParams]);
+
+  // Get token info for display
+  const collateralToken = tokens.get(marketParams.collateralToken);
+  const loanToken = tokens.get(marketParams.loanToken);
 
   // Calculate max withdrawable assets
   const withdrawCollateralMax = useMemo(() => {
@@ -401,12 +408,51 @@ export function MarketSheetContent({
     <SheetContent className="bg-background z-[9999] w-full gap-3 overflow-y-scroll sm:w-[500px] sm:min-w-[500px] sm:max-w-[500px]">
       <Toaster theme="dark" position="bottom-left" richColors />
       <SheetHeader>
-        <SheetTitle>Your Position</SheetTitle>
+        <SheetTitle>Market</SheetTitle>
         <SheetDescription>
-          You can view and edit your position here. To understand more about risks, please visit our{" "}
-          <a className="underline" href={RISKS_DOCUMENTATION} rel="noopener noreferrer" target="_blank">
-            docs.
-          </a>
+          <div className="flex flex-col gap-3 pt-2">
+            {/* Market Pair */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <Avatar className="size-5 rounded-full">
+                  <AvatarImage src={collateralToken?.imageSrc} alt={collateralToken?.symbol} />
+                  <AvatarFallback delayMs={1000}>
+                    <img src={blo(marketParams.collateralToken)} />
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium">{collateralToken?.symbol ?? "－"}</span>
+              </div>
+              <span className="text-secondary-foreground">/</span>
+              <div className="flex items-center gap-1.5">
+                <Avatar className="size-5 rounded-full">
+                  <AvatarImage src={loanToken?.imageSrc} alt={loanToken?.symbol} />
+                  <AvatarFallback delayMs={1000}>
+                    <img src={blo(marketParams.loanToken)} />
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium">{loanToken?.symbol ?? "－"}</span>
+              </div>
+            </div>
+            {/* Market Stats */}
+            {market && (
+              <div className="text-secondary-foreground flex flex-wrap items-center gap-4 text-xs">
+                {market.getSupplyApy() !== undefined && (
+                  <div className="flex items-center gap-1">
+                    <span>Supply APY:</span>
+                    <span className="text-foreground font-medium">{formatApy(market.getSupplyApy())}</span>
+                  </div>
+                )}
+                {loanToken?.decimals !== undefined && market.liquidity > 0n && (
+                  <div className="flex items-center gap-1">
+                    <span>Liquidity:</span>
+                    <span className="text-foreground font-medium">
+                      {formatBalanceWithSymbol(market.liquidity, loanToken.decimals, loanToken.symbol, 2, true)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </SheetDescription>
       </SheetHeader>
       {/* <div className="bg-primary mx-4 flex flex-col gap-4 rounded-2xl p-4">
@@ -464,6 +510,7 @@ export function MarketSheetContent({
               value={textInputValue}
               maxValue={balances?.[0]}
               onChange={setTextInputValue}
+              onRefresh={() => void refetchBalances()}
             />
             <ApyChangeDisplay inputValue={inputValue} currentApy={currentApy} newApy={newApy} />
           </div>

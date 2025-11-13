@@ -1,3 +1,4 @@
+import { RefreshCw } from "lucide-react";
 import { formatUnits } from "viem";
 
 import { Input } from "@/components/shadcn/input";
@@ -21,11 +22,13 @@ export function TokenAmountInput({
   value,
   maxValue,
   onChange,
+  onRefresh,
 }: {
   decimals?: number;
   value: string;
   maxValue?: bigint;
   onChange: (value: string) => void;
+  onRefresh?: () => void | Promise<void>;
 }) {
   const textMaxValue = maxValue !== undefined && decimals !== undefined ? formatUnits(maxValue, decimals) : undefined;
 
@@ -43,12 +46,22 @@ export function TokenAmountInput({
         disabled={decimals === undefined}
       />
       {textMaxValue && (
-        <p className="text-primary-foreground text-right text-xs font-light">
-          {textMaxValue}{" "}
+        <div className="text-primary-foreground flex items-center justify-end gap-2 text-xs font-light">
+          <span>{textMaxValue}</span>
           <span className="text-morpho-brand cursor-pointer" onClick={() => onChange(textMaxValue)}>
             MAX
-          </span>{" "}
-        </p>
+          </span>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={() => void onRefresh()}
+              className="text-morpho-brand hover:text-morpho-brand/80 flex items-center transition-colors"
+              aria-label="Refresh balance"
+            >
+              <RefreshCw className="size-3" />
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
